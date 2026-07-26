@@ -142,6 +142,43 @@ static void pwmInit() {
   TCA0.SPLIT.CTRLA = PWM_CLKSEL | TCA_SPLIT_ENABLE_bm;
 }
 
+// One timer feeds all three channels, so there's a single PWM frequency at a
+// time. Choose it from the brightest lit channel: high frequency when anything
+// is bright (stroboscopic flicker is visible there), low when everything is dim
+// (the driver gets long clean pulses at the bottom, and flicker barely reads
+// when faint). Hysteresis via three tiers keeps it from hunting at a boundary.
+// This does not move the 0.39% floor — see config.h.
+#if GLIM_VARIABLE_PWM_FREQ
+static void updatePwmFreq() {
+  uint8_t maxlvl = 0;
+  for (uint8_t ch = 0; ch < NUM_CHANNELS; ch++) {
+    uint8_t l = (uint8_t)(disp[ch] >> 8);   // slewed level; 0 when off/faded out
+    if (l > maxlvl) maxlvl = l;
+  }
+
+  static uint8_t tier = 1;                   // 0=lo, 1=mid, 2=hi (matches pwmInit)
+  uint8_t next = tier;
+  switch (tier) {
+    case 0: if (maxlvl > PWM_FREQ_LO_LEVEL + PWM_FREQ_HYST) next = 1; break;
+    case 1: if (maxlvl > PWM_FREQ_HI_LEVEL + PWM_FREQ_HYST) next = 2;
+            else if (maxlvl < PWM_FREQ_LO_LEVEL - PWM_FREQ_HYST) next = 0; break;
+    case 2: if (maxlvl < PWM_FREQ_HI_LEVEL - PWM_FREQ_HYST) next = 1; break;
+  }
+  if (next == tier) return;
+  tier = next;
+
+  uint8_t clksel = (tier == 0) ? PWM_FREQ_LO_CLKSEL
+                 : (tier == 2) ? PWM_FREQ_HI_CLKSEL
+                               : PWM_FREQ_MID_CLKSEL;
+  // Changing CLKSEL only alters the prescaler; PER and the HCMPn duties are
+  // unchanged, so brightness-per-count is identical and no rescale is needed.
+  // Hysteresis makes this rare, so a one-period seam at the switch is invisible.
+  TCA0.SPLIT.CTRLA = clksel | TCA_SPLIT_ENABLE_bm;
+}
+#else
+static void updatePwmFreq() {}
+#endif
+
 // ---------------------------------------------------------------------------
 // Rendering: setpoint → slewed display → high-res duty (ISR does the rest)
 // ---------------------------------------------------------------------------
@@ -499,6 +536,7 @@ void loop() {
   handleSelect();
   handleSwitch();
   slewAndRender(dt);
+  updatePwmFreq();
   updateStatusPixel(false);
 
   if (dirty && (now - dirtyAt) >= EEPROM_SAVE_DELAY_MS) saveState();

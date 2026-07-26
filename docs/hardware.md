@@ -82,10 +82,19 @@ Useful operating points (8-bit, `HPER = 255`):
 | **20 MHz, DIV256** | **305 Hz** | **12.8 µs** ← current |
 | 20 MHz, DIV64 | 1221 Hz | 3.2 µs |
 
-20 MHz + DIV256 is the best available compromise: 12.8 µs is long enough for the
-PT4115 to reach regulation (so `PWM_MIN_DUTY = 1`, a 0.39% floor ≈ 8% perceived),
-while 305 Hz keeps 25% more flicker margin than 244 Hz. Raise `PWM_MIN_DUTY` if
-the bottom levels misbehave; raise the frequency if you see stroboscopic shimmer.
+305 Hz (DIV256) is the mid tier of a **brightness-scheduled frequency**
+(`GLIM_VARIABLE_PWM_FREQ`): the firmware runs DIV64 (~1221 Hz) when a channel is
+bright, DIV256 (~305 Hz) in the middle, and DIV1024 (~76 Hz, a 51 µs pulse the
+driver reproduces cleanly) when everything is dim. All three channels share the
+one timer, so the frequency tracks the *brightest lit* channel — a lone dim
+night-light gets the low tier; a dim channel beside a bright one rides the higher
+one, so the bright channel never flickers. 76 Hz is the hard floor (no prescaler
+past 1024, and split-mode PER is capped at 255).
+
+This does **not** lower the 0.39% floor — that's the 8-bit resolution limit,
+independent of frequency (the minimum step is always 1 count in 256). It makes
+the lowest steps clean and monotonic and cuts flicker up top. Going genuinely
+below 0.39% needs analog current reduction (hybrid dimming), not frequency.
 
 To go meaningfully lower you'd need hybrid dimming — drive the PT4115's analog
 CTRL pin to scale full-scale current down (TCA0's unused WO0/WO1/WO2 on

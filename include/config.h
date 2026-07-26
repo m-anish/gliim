@@ -54,6 +54,25 @@
 // this back toward 3.
 #define PWM_MIN_DUTY 1
 
+// Variable PWM frequency. All three channels share one timer, so there's one
+// frequency at a time; it's chosen from the *brightest lit* channel. High when
+// bright (kills stroboscopic flicker where the eye catches it), low when dim
+// (long, clean pulses the driver reproduces reliably at the bottom, and flicker
+// is barely visible when faint). Note: this does NOT lower the 0.39% floor —
+// that's the 8-bit resolution limit — it only makes the lowest steps clean and
+// cuts flicker up top. Set to 0 to hold PWM_CLKSEL fixed.
+#define GLIM_VARIABLE_PWM_FREQ 1
+
+// The three tiers (at 20 MHz: DIV64≈1221 Hz, DIV256≈305 Hz, DIV1024≈76 Hz) and
+// the brightest-channel logical level (0..255) at which we step between them.
+// HYST is the hysteresis band that stops it hunting at a boundary.
+#define PWM_FREQ_HI_CLKSEL  TCA_SPLIT_CLKSEL_DIV64_gc     // bright
+#define PWM_FREQ_MID_CLKSEL TCA_SPLIT_CLKSEL_DIV256_gc    // mid  (== PWM_CLKSEL)
+#define PWM_FREQ_LO_CLKSEL  TCA_SPLIT_CLKSEL_DIV1024_gc   // deep dim
+#define PWM_FREQ_HI_LEVEL   128    // brightest channel above this → HI tier
+#define PWM_FREQ_LO_LEVEL   24     // brightest channel below this → LO tier
+#define PWM_FREQ_HYST       8
+
 // ---------------------------------------------------------------------------
 // Brightness model
 // ---------------------------------------------------------------------------
