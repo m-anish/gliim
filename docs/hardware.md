@@ -11,47 +11,61 @@ free for future expansion.
 
 | Signal | Pin | On-chip function |
 |--------|-----|------------------|
-| LED channel 1 (PWM) | PA3 | TCA0 WO3 (HCMP0) → PT4115 #1 PWM/DIM |
-| LED channel 2 (PWM) | PA4 | TCA0 WO4 (HCMP1) → PT4115 #2 PWM/DIM |
-| LED channel 3 (PWM) | PA5 | TCA0 WO5 (HCMP2) → PT4115 #3 PWM/DIM |
+| LED channel 1 (PWM) | PB0 | TCA0 **WO0 (CMP0)** → PT4115 #1 PWM/DIM |
+| LED channel 2 (PWM) | PB1 | TCA0 **WO1 (CMP1)** → PT4115 #2 PWM/DIM |
+| LED channel 3 (PWM) | PB2 | TCA0 **WO2 (CMP2)** → PT4115 #3 PWM/DIM |
+| IR receiver | PB3 | TSOP38238 OUT, falling-edge interrupt |
 | Joystick X | PA2 | ADC AIN2 (left/right → channel select) |
 | Joystick Y | PA1 | ADC AIN1 (up/down → brightness) |
 | Status pixel (WS2812) | PA6 | plain GPIO — colour shows the selected channel |
 | Joystick SW | PA7 | digital input, internal pull-up, active-low |
 | UPDI (program) | PA0 | UPDI, 1 kΩ in series |
-| *free* | PB0 | I²C SDA — earmarked for the IR receiver |
-| *free* | PB1 | I²C SCL |
-| *free* | PB2 / PB3 | USART (TX / RX) — used for debug serial if enabled |
+| Debug TX | PA4 | SoftwareSerial, **debug builds only** |
+| *free* | PA3, PA5 | PA5 is the debug RX placeholder |
 
-### Why this map, and not PWM-on-PA1/PA2
+### Why this map
 
-The intuitive first cut — LEDs on PA1/PA2/PA3, joystick on PB2/PB3 — **does not
-work on this chip**, and the reason is worth writing down so nobody re-derives it
-the hard way. From the ATtiny214/414/814 datasheet (DS40001912A):
+Two independent constraints pin it down. From the datasheet (DS40001912A):
 
 - **PA1 and PA2 have no waveform (PWM) output at all.** TCA0's outputs are
   hardwired: WO0/WO1/WO2 → PB0/PB1/PB2, and WO3/WO4/WO5 → PA3/PA4/PA5. The only
-  PORTMUX remap available for TCA0 is a single bit that moves WO0 to PB3
-  (Table 5-1 / PORTMUX.CTRLC). No timer — TCA0, TCB0, or TCD0 — can produce PWM
-  on PA1 or PA2. **But** PA1/PA2 *are* ADC inputs (AIN1/AIN2).
+  PORTMUX remap for TCA0 is a single bit moving WO0 to PB3 (Table 5-1 /
+  PORTMUX.CTRLC). No timer can produce PWM on PA1 or PA2 — **but** they *are* ADC
+  inputs (AIN1/AIN2), so that's where the joystick goes.
 - **PB2 and PB3 have no ADC channel.** On PORTB only PB0 (AIN11) and PB1 (AIN10)
-  reach the ADC; PB2/PB3 are USART/TOSC pins. So they can't read an analog
-  joystick — **but** they *can* do PWM/UART.
+  reach the ADC. So PORTB can't read an analog joystick — but it *can* do PWM.
 
-The two roles are therefore swapped onto the pins that can physically do the
-job: PWM on PA3/PA4/PA5, analog joystick on PA1/PA2. Everything else falls out of
-that. If you're porting to a different tinyAVR, re-check Table 5-1 first.
+Then the resolution question decides *which* PWM pins. TCA0 has two modes and you
+cannot have both:
+
+| Mode | Outputs | Pins | Resolution |
+|---|---|---|---|
+| **Normal** (used) | WO0–WO2 | **PB0/PB1/PB2** | **16-bit** |
+| Split | WO0–WO5 | PB0–2 + PA3–5 | 8-bit |
+
+Split mode's six channels are worthless here — we only have three drivers — while
+its 8-bit resolution costs real dimming depth (next section). So the LEDs live on
+**PB0/PB1/PB2** and TCA0 runs in normal mode.
+
+**Consequence:** PB2 is also USART0's TXD, and its only PORTMUX alternate (PA1)
+is the joystick. So the hardware UART is gone; `GLIM_DEBUG` builds bit-bang over
+SoftwareSerial on **PA4** instead, and IR is auto-disabled in those builds
+(SoftwareSerial's interrupt dispatcher claims the PORT vectors the IR decoder
+needs). This is a genuine 14-pin squeeze — rev2's ATtiny1616 has room for both.
 
 ### PWM engine
 
-The three LED pins are WO3/WO4/WO5, which **only exist in TCA0 split mode** (in
-normal 16-bit mode TCA0 exposes just WO0–WO2). So the firmware:
+`analogWrite()` can't drive TCA0 in normal mode, so the firmware does it directly:
 
 1. calls `takeOverTCA0()` — safe because megaTinyCore puts `millis()` on TCD0, so
    TCA0 is otherwise idle;
-2. enables split mode, sets `HCMP0/1/2EN` (which hands PA3/PA4/PA5 to the timer),
-   `HPER = 255`, clock `DIV64`;
-3. writes duty straight to `HCMP0/HCMP1/HCMP2` (higher = brighter).
+2. selects single-slope PWM with `CMP0/1/2EN` (which hands PB0/PB1/PB2 to the
+   timer) and `PER = 65535` for the full 16 bits;
+3. writes duty to **`CMP0BUF/CMP1BUF/CMP2BUF`** — the *buffered* registers, which
+   update at the period boundary so a mid-period change can't emit a runt pulse.
+
+Single-slope sets the output at TOP and clears it on compare match (§20.3.3.4),
+so duty = `CMP/(PER+1)` and **higher = brighter**, same polarity as before.
 
 At `F_CPU = 20 MHz`, `DIV256` gives ~305 Hz.
 
@@ -82,19 +96,46 @@ Useful operating points (8-bit, `HPER = 255`):
 | **20 MHz, DIV256** | **305 Hz** | **12.8 µs** ← current |
 | 20 MHz, DIV64 | 1221 Hz | 3.2 µs |
 
-305 Hz (DIV256) is the mid tier of a **brightness-scheduled frequency**
-(`GLIM_VARIABLE_PWM_FREQ`): the firmware runs DIV64 (~1221 Hz) when a channel is
-bright, DIV256 (~305 Hz) in the middle, and DIV1024 (~76 Hz, a 51 µs pulse the
-driver reproduces cleanly) when everything is dim. All three channels share the
-one timer, so the frequency tracks the *brightest lit* channel — a lone dim
-night-light gets the low tier; a dim channel beside a bright one rides the higher
-one, so the bright channel never flickers. 76 Hz is the hard floor (no prescaler
-past 1024, and split-mode PER is capped at 255).
+At `F_CPU = 20 MHz` with `PER = 65535`, DIV1 gives **305 Hz** — and that is the
+*ceiling*, because full 16-bit resolution consumes the whole period.
 
-This does **not** lower the 0.39% floor — that's the 8-bit resolution limit,
-independent of frequency (the minimum step is always 1 count in 256). It makes
-the lowest steps clean and monotonic and cuts flicker up top. Going genuinely
-below 0.39% needs analog current reduction (hybrid dimming), not frequency.
+### How low the dimming actually goes
+
+The floor is set by the **driver**, not the timer. The PT4115 is a hysteretic
+buck: it needs enough on-time to build inductor current to regulation. Its
+datasheet quotes the usable duty range at two frequencies, and both reduce to the
+same number:
+
+| Condition | Min duty | Period | ⇒ min on-time |
+|---|---|---|---|
+| f_DIM = 100 Hz | 0.02 % | 10 ms | **2 µs** |
+| f_DIM = 20 kHz | 4 % | 50 µs | **2 µs** |
+
+So `minimum duty = 2 µs × PWM frequency`, and the dimming ratio is
+`period / 2 µs`. Firmware expresses this as `DRIVER_MIN_ON_NS` and converts to
+counts automatically, so the floor tracks whatever prescaler is in use:
+
+| Prescaler | Frequency | Floor | Ratio | ≈ perceived |
+|---|---|---|---|---|
+| **DIV1** | **305 Hz** | 40 counts (0.061 %) | **1638:1** | ~3.5 % |
+| DIV2 | 152 Hz | 20 counts (0.031 %) | 3277:1 | ~2.5 % |
+| DIV4 | 76 Hz | 10 counts (0.015 %) | 6554:1 | ~1.8 % |
+
+**This is why the LEDs are on PB0/PB1/PB2 and not PA3/PA4/PA5.** With 8-bit split
+mode the smallest step is 1/256 = 0.39 %, which at 305 Hz is **6.4× coarser than
+the driver can actually resolve** — the silicon was never the limit at these
+frequencies, resolution was. Going to 16-bit recovers all of it.
+
+`GLIM_VARIABLE_PWM_FREQ` still schedules the prescaler by brightness, but the
+tiers now only step *downward* from 305 Hz (there is nothing above it): 305 Hz
+for bright and mid, dropping to 152 Hz when everything is dim, where flicker is
+least visible and the floor halves. Set `PWM_CLKSEL_LO` to DIV4 for the last 2×
+of depth if you can live with 76 Hz. All three channels share the timer, so the
+frequency follows the *brightest lit* channel — a dim channel beside a bright one
+rides the higher frequency, keeping the bright one flicker-free.
+
+Below 0.015 % you need analog current reduction (hybrid dimming) or a larger
+sense resistor; no amount of PWM gets there.
 
 To go meaningfully lower you'd need hybrid dimming — drive the PT4115's analog
 CTRL pin to scale full-scale current down (TCA0's unused WO0/WO1/WO2 on

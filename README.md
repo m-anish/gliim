@@ -25,14 +25,17 @@ does the same job at campus scale. Part of the
 ## What it does
 
 - Drives **3 independent LED channels** through PT4115 constant-current drivers,
-  dimmed by hardware PWM (~305 Hz, tuned for how low the drivers can honestly go).
+  dimmed by **16-bit** hardware PWM at 305 Hz — deep enough to reach the drivers'
+  own ~1600:1 limit, so the bottom of the range is smooth rather than steppy.
 - **One joystick** does everything:
   - **up / down** — the selected channel gets brighter / dimmer, at a speed that
     follows how far you push.
   - **left / right** — pick which channel you're steering. The one you land on
     blinks once so you know it heard you.
   - **tap the stick** — toggle that channel on / off (it remembers its level).
-  - **hold the stick** — everything off. Goodnight.
+  - **hold the stick** — everything off. Goodnight. (Hold again to bring it back.)
+- **Any NEC IR remote** works, once you teach it which buttons to use — hold the
+  stick 3 s to enter learn mode. Couch control without hardcoding a remote model.
 - **Remembers the room.** Levels are saved a few seconds after you stop fiddling,
   so flipping the wall switch brings the lights back exactly as you left them.
 - **Feels linear.** Brightness is gamma-corrected, so equal joystick travel is
@@ -42,7 +45,7 @@ does the same job at campus scale. Part of the
 
 | Part | Role |
 |------|------|
-| ATtiny814 | brains — 3× PWM, 2× ADC for the joystick, 1 button input |
+| ATtiny814 | brains — 3× 16-bit PWM, 2× ADC, button, IR, status pixel |
 | 3× PT4115 | buck LED drivers, one per channel (up to ~5 LEDs each) |
 | Joystick module | cheap 5-pin analog thumbstick (GND/5V/X/Y/SW) |
 | Buck module | steps the 6–30 V supply down to 5 V for the logic |
@@ -54,10 +57,10 @@ map looks the way it does** are in [docs/hardware.md](docs/hardware.md); the
 parts list (core + indicator LEDs + IR remote) is in
 [hardware/BOM.md](hardware/BOM.md).
 
-> **Note on the pin map:** the LEDs live on PA3/PA4/PA5 and the joystick on
-> PA1/PA2/PA7 — not the other way around. On the ATtiny814 only PA3/PA4/PA5 can
-> emit PWM, and PA1/PA2 are the ADC pins; the roles are forced by the silicon.
-> See [docs/hardware.md](docs/hardware.md) if you're wiring a board.
+> **Note on the pin map:** the LEDs live on **PB0/PB1/PB2** and the joystick on
+> PA1/PA2/PA7. PB0–PB2 are TCA0's WO0–WO2, the only outputs that exist in
+> 16-bit mode; PA1/PA2 are the ADC pins. Both roles are forced by the silicon —
+> see [docs/hardware.md](docs/hardware.md) before wiring a board.
 
 ## Controls
 

@@ -19,6 +19,49 @@ channels swell up together as you keep holding; once they reach full and flash,
 saved brightness/selection is wiped back to defaults. Let go before the flash to
 cancel and boot normally.
 
+## The remote
+
+glim accepts any **NEC-protocol** IR remote — the near-universal cheap kind,
+including a 44-key LED-strip remote or a spare TV remote. Nothing is hardcoded to
+a particular model: you teach it which buttons you want.
+
+### Teaching it (learn mode)
+
+**Hold the joystick button for about 3 seconds.** You'll feel the all-off toggle
+fire at ~0.7 s on the way — keep holding; glim undoes it when learn mode starts,
+so the room ends up as it was.
+
+The lights go out and the status pixel starts blinking. It walks six actions in
+order, blinking **n+1 times** to say which one it's asking for:
+
+| Blinks | Press the remote button you want for… |
+|---|---|
+| 1 | brighter |
+| 2 | dimmer |
+| 3 | next channel |
+| 4 | previous channel |
+| 5 | toggle this channel |
+| 6 | toggle all channels |
+
+Green flash = accepted. Red flash = you pressed a button already used for
+something else; try a different one. Stop pressing for 10 seconds and it saves
+whatever you've bound so far and exits — so binding just the first two is fine if
+that's all you want. Three blue flashes mean it's saved.
+
+Bindings live in EEPROM and survive power cycles and reflashing. Run learn mode
+again any time to rebind; a factory reset clears them.
+
+### Using it
+
+The remote drives exactly the same actions as the stick — **hold** brighter or
+dimmer to ramp (it tracks the remote's repeat frames, so it ramps for as long as
+you hold), and the channel/toggle buttons are single-shot. The status pixel and
+acknowledge-blink behave identically, so it's obvious which channel you're
+steering from across the room.
+
+> With no receiver fitted, the input pin idles high on its pull-up and nothing
+> ever decodes — leaving `GLIM_IR` enabled costs nothing.
+
 ## How it feels, and why
 
 - **Two toggles, same shape.** Tap = this light, hold = all lights. Both are

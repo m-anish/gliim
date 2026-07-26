@@ -12,11 +12,29 @@
 // Pin map (ATtiny814, 14-pin SOIC)
 // ---------------------------------------------------------------------------
 
-// LED channels → PT4115 PWM/DIM inputs. These MUST stay on PA3/PA4/PA5:
-// they are TCA0 split-mode outputs WO3/WO4/WO5 (HCMP0/HCMP1/HCMP2).
-#define LED1_PIN   PIN_PA3   // TCA0 WO3 / HCMP0
-#define LED2_PIN   PIN_PA4   // TCA0 WO4 / HCMP1
-#define LED3_PIN   PIN_PA5   // TCA0 WO5 / HCMP2
+// LED channels → PT4115 PWM/DIM inputs. These MUST stay on PB0/PB1/PB2: they
+// are TCA0's WO0/WO1/WO2, the only outputs that exist in *normal* (16-bit) mode.
+// Moving them back to PA3/PA4/PA5 would force split mode and cost 8 bits of
+// dimming resolution — see docs/hardware.md before touching this.
+#define LED1_PIN   PIN_PB0   // TCA0 WO0 / CMP0
+#define LED2_PIN   PIN_PB1   // TCA0 WO1 / CMP1
+#define LED3_PIN   PIN_PB2   // TCA0 WO2 / CMP2
+
+// IR receiver (TSOP38238) demodulated output, active-low, idles high.
+//
+// On PB3 rather than a spare PORTA pin so its edge interrupt lands on
+// PORTB_PORT_vect, leaving PORTA_PORT_vect free for SoftwareSerial's receiver in
+// debug builds — two ISRs can't share a vector. PB3 is interrupt-capable
+// (synchronous only, which is fine: glim never sleeps while decoding).
+//
+// The four defines must agree. megaTinyCore's Arduino pin numbers are NOT port
+// bit positions (PIN_PA0 is 11, PIN_PA3 is 10), so none of these can be derived
+// from IR_PIN — spell them out.
+#define IR_PIN       PIN_PB3
+#define IR_PORT      PORTB
+#define IR_PIN_bm    PIN3_bm         // PB3's bit within PORTB
+#define IR_PINCTRL   PORTB.PIN3CTRL
+#define IR_PORT_vect PORTB_PORT_vect
 
 // Joystick. X/Y must be ADC-capable pins; PA1=AIN1, PA2=AIN2. Which axis lands
 // on which pin is down to how the module is wired — swap these two if left/right
@@ -35,40 +53,49 @@
 // PWM
 // ---------------------------------------------------------------------------
 
-// TCA0 split clock divider. At F_CPU=20 MHz, DIV256 → 20e6/256/256 ≈ 305 Hz,
-// which makes one duty count 12.8 µs — long enough for the PT4115 to actually
-// reach regulation, so PWM_MIN_DUTY can sit at 1.
+// TCA0 runs in NORMAL mode as one 16-bit single-slope PWM with three compare
+// channels. PER = 65535 gives the full 16 bits of resolution:
+//     f_PWM = F_CPU / (N × (PER+1))     → 20 MHz / 65536 = 305 Hz at DIV1
+#define PWM_PER 65535
+
+// The PT4115's real floor is a *minimum on-time*, not a duty: its datasheet
+// dimming limits at 100 Hz (0.02%) and 20 kHz (4%) both reduce to ~2 µs. Below
+// that pulse width the driver stops regulating and output goes non-monotonic.
 //
-// The tradeoff here is arithmetic, not preference:
-//     (on-time per count) × (PWM frequency) = 1/256,  always.
-// Raising the frequency shortens the pulse the driver must reproduce, which
-// *raises* the lowest honest duty; lowering it risks stroboscopic shimmer.
-// F_CPU doesn't move that curve, it only changes which points you can land on.
-// DIV64 here would give 1221 Hz / 3.2 µs.
-#define PWM_CLKSEL TCA_SPLIT_CLKSEL_DIV256_gc
+// Expressed as time, the floor in *counts* falls automatically as the PWM
+// frequency drops — which is why the low-frequency tier dims genuinely deeper:
+//     min_counts = DRIVER_MIN_ON_NS × F_CPU / (1e9 × prescaler)
+//     at 20 MHz → 40 counts at DIV1, 20 at DIV2, 10 at DIV4
+// Raise this if the bottom couple of levels flicker or stop being monotonic.
+#define DRIVER_MIN_ON_NS 2000
 
-// Smallest non-zero duty (out of 255) → the dimmest lit step, here 1/256 =
-// 0.39% (~8% perceived). At 305 Hz one count is 12.8 µs, which the PT4115
-// should reach regulation within. If the bottom couple of levels flicker, drop
-// out, or stop being monotonic, the driver isn't managing that pulse — raise
-// this back toward 3.
-#define PWM_MIN_DUTY 1
-
-// Variable PWM frequency. All three channels share one timer, so there's one
-// frequency at a time; it's chosen from the *brightest lit* channel. High when
-// bright (kills stroboscopic flicker where the eye catches it), low when dim
-// (long, clean pulses the driver reproduces reliably at the bottom, and flicker
-// is barely visible when faint). Note: this does NOT lower the 0.39% floor —
-// that's the 8-bit resolution limit — it only makes the lowest steps clean and
-// cuts flicker up top. Set to 0 to hold PWM_CLKSEL fixed.
+// Variable PWM frequency. All three channels share one timer, so there is one
+// frequency at a time; it follows the *brightest lit* channel. High when bright
+// (stroboscopic flicker is visible there), low when dim (flicker barely reads
+// when faint, and the min-on-time floor shrinks in counts, so dim gets deeper).
+// Set to 0 to hold PWM_CLKSEL_MID fixed.
 #define GLIM_VARIABLE_PWM_FREQ 1
 
-// The three tiers (at 20 MHz: DIV64≈1221 Hz, DIV256≈305 Hz, DIV1024≈76 Hz) and
-// the brightest-channel logical level (0..255) at which we step between them.
-// HYST is the hysteresis band that stops it hunting at a boundary.
-#define PWM_FREQ_HI_CLKSEL  TCA_SPLIT_CLKSEL_DIV64_gc     // bright
-#define PWM_FREQ_MID_CLKSEL TCA_SPLIT_CLKSEL_DIV256_gc    // mid  (== PWM_CLKSEL)
-#define PWM_FREQ_LO_CLKSEL  TCA_SPLIT_CLKSEL_DIV1024_gc   // deep dim
+// At 20 MHz with PER=65535, DIV1 gives 305 Hz — and that is the *ceiling*, since
+// full 16-bit resolution needs the whole period. So unlike the old 8-bit setup
+// (which could run 1221 Hz), the tiers only ever step downward from 305 Hz:
+//
+//   DIV1  305 Hz   floor 40 counts (0.061%, ~3.5% perceived)  1638:1
+//   DIV2  152 Hz   floor 20 counts (0.031%, ~2.5% perceived)  3277:1
+//   DIV4   76 Hz   floor 10 counts (0.015%, ~1.8% perceived)  6554:1
+//
+// 305 Hz is therefore the default for bright *and* mid — the top two tiers
+// coincide, and that's deliberate: it's the frequency the board has run happily
+// at, and even there 16-bit already beats the old 8-bit floor by 6.4×. Only the
+// deep-dim tier trades frequency away, where flicker is least visible.
+// Set PWM_CLKSEL_LO to DIV4 if you want the last 2× of depth and can live with
+// 76 Hz; that's the deepest this hardware goes.
+#define PWM_CLKSEL_HI   TCA_SINGLE_CLKSEL_DIV1_gc    // bright   — 305 Hz
+#define PWM_CLKSEL_MID  TCA_SINGLE_CLKSEL_DIV1_gc    // mid      — 305 Hz
+#define PWM_CLKSEL_LO   TCA_SINGLE_CLKSEL_DIV2_gc    // deep dim — 152 Hz
+#define PWM_PRESCALE_HI  1
+#define PWM_PRESCALE_MID 1
+#define PWM_PRESCALE_LO  2
 #define PWM_FREQ_HI_LEVEL   128    // brightest channel above this → HI tier
 #define PWM_FREQ_LO_LEVEL   24     // brightest channel below this → LO tier
 #define PWM_FREQ_HYST       8
@@ -117,14 +144,9 @@
 // be over in a few tens of ms and look like a snap.
 #define BOOT_FADE_MS 1200
 
-// Temporal dithering: buys brightness resolution below the 8-bit PWM floor by
-// nudging duty ±1 across frames (first-order sigma-delta), so deep dimming
-// stops stair-stepping. DITHER_BITS extra bits, 0 disables. The dither pattern
-// repeats at PWM_freq / 2^DITHER_BITS, so keep it high enough to stay invisible:
-// at 305 Hz, 1 bit → 152 Hz (safe), 2 → 76 Hz, 3 → 38 Hz (would flicker).
-// Dropping to 1 bit is the price of the lower PWM frequency — dither can only
-// smooth the range *above* the floor, it can't lower the floor itself.
-#define DITHER_BITS 1
+// (Temporal dithering was removed with the move to 16-bit PWM. It existed to
+// fake ~10 bits out of an 8-bit timer; the hardware now gives 16, which is far
+// past what dithering bought and costs no flicker margin.)
 
 // ---------------------------------------------------------------------------
 // Status pixel (WS2812)
@@ -144,6 +166,36 @@
 // Pixel brightness (0..255): normal, and when all channels are off.
 #define STATUS_BRIGHT      40
 #define STATUS_BRIGHT_IDLE 4
+
+// ---------------------------------------------------------------------------
+// IR remote (NEC protocol, 38 kHz)
+// ---------------------------------------------------------------------------
+
+// Safe to leave enabled with no receiver fitted: the pin idles high on its
+// internal pull-up, so no edges arrive and nothing ever decodes.
+#define GLIM_IR 1
+
+// Six actions are learnable, in this order. Learn mode walks them one at a time.
+#define IR_ACT_UP     0   // brighter (hold to keep ramping)
+#define IR_ACT_DOWN   1   // dimmer   (hold to keep ramping)
+#define IR_ACT_NEXT   2   // next channel
+#define IR_ACT_PREV   3   // previous channel
+#define IR_ACT_TOGGLE 4   // toggle the selected channel
+#define IR_ACT_ALL    5   // toggle every channel
+#define IR_ACT_COUNT  6
+
+// Hold the joystick button this long to enter learn mode. It is deliberately
+// past SW_LONGPRESS_MS: you feel the all-toggle fire at 700 ms, and if you keep
+// holding you land in learn mode (which undoes that toggle).
+#define IR_LEARN_HOLD_MS 3000
+
+// Give up on a learn step after this long with no remote press, and save
+// whatever has been bound so far.
+#define IR_LEARN_TIMEOUT_MS 10000
+
+// A held remote button repeats every ~108 ms. If this long passes with no IR
+// activity, treat the button as released and stop ramping.
+#define IR_HOLD_MS 200
 
 // ---------------------------------------------------------------------------
 // Joystick feel
@@ -192,11 +244,29 @@
 // Debug
 // ---------------------------------------------------------------------------
 
-// Set to 1 to stream joystick/level telemetry on USART0 (PB2=TX, PB3=RX) at
-// 115200. Handy for calibration; leave at 0 for production.
+// Set to 1 to stream joystick/level telemetry at 115200. Handy for joystick
+// calibration; leave at 0 for production.
 //
 // Guarded so it can be overridden at build time without editing this file —
 // `utils/flash.sh --debug` does exactly that.
 #ifndef GLIM_DEBUG
 #define GLIM_DEBUG 0
+#endif
+
+// Debug output can't use the hardware USART any more: USART0's TXD is PB2, which
+// is now LED channel 3, and its only alternate (PA1) is the joystick. So debug
+// builds bit-bang over SoftwareSerial on the pins freed by moving the LEDs off
+// PORTA. Wire the USB-serial adapter's **RX to PA4** — note this is a different
+// pin from the UPDI node.
+#define DEBUG_TX_PIN PIN_PA4
+#define DEBUG_RX_PIN PIN_PA5   // unused in practice; SoftwareSerial wants a pin
+
+// SoftwareSerial routes through the core's attachInterrupt dispatcher, which
+// defines every PORT interrupt vector — so it cannot coexist with the IR
+// decoder's own raw ISR, on any port. They're mutually exclusive by nature, and
+// that's fine: debug builds exist for joystick calibration, where you don't need
+// the remote. Production builds (GLIM_DEBUG=0) keep IR.
+#if GLIM_DEBUG && GLIM_IR
+#undef GLIM_IR
+#define GLIM_IR 0
 #endif
