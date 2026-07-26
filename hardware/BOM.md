@@ -1,4 +1,9 @@
-# Bill of Materials & build plan
+# Bill of Materials & build plan (rev1)
+
+> This covers the **rev1 hand-soldered board**. For the next board — ATtiny1616,
+> 16-bit PWM, USB-C PD power, on-board IR — see
+> [`rev2/README.md`](rev2/README.md).
+
 
 A living parts list for glim. It covers the **core dimmer** (current rev1,
 hand-soldered) plus the two add-ons worth baking in now — **channel indicator

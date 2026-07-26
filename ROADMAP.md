@@ -75,7 +75,17 @@ Small parts, one or two pins each. Pick à la carte.
 > covers the two real gaps — persistent selection feedback and across-the-room
 > control — without touching the minimalist spirit.
 
-## Tier 2 — rev2 PCB (consolidation + modest scaling)
+## Tier 2 — rev2 PCB ✅ specified
+
+**Full specification: [`hardware/rev2/`](hardware/rev2/README.md)** — board spec,
+[PT4115 driver circuit](hardware/rev2/led-driver.md), and
+[input circuits](hardware/rev2/input.md).
+
+Headline: ATtiny1616, **16-bit PWM** (the PT4115's real floor is a 2 µs on-time,
+so 8-bit was wasting ~6× of dimming depth), USB-C PD power, on-board IR and
+status pixel, and 10 kΩ DIM pulldowns so it stops flashing at power-up.
+
+The original sketch of this tier, for reference:
 
 A proper board is the natural home for the Tier-1 add-ons plus the boring
 robustness a wall-installed device wants.

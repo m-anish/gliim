@@ -94,7 +94,8 @@ glim/
 │   ├── flash.sh         build/flash/monitor wrapper (start here)
 │   └── find-port.sh     locate the USB-serial programmer
 ├── hardware/
-│   └── BOM.md           parts list + build plan (core, indicators, IR)
+│   ├── BOM.md           rev1 parts list + build plan
+│   └── rev2/            next board: spec, PT4115 circuit, input circuits
 ├── ROADMAP.md          where it goes next
 └── docs/
     ├── hardware.md      wiring, power, pin-map rationale, programmer
@@ -104,9 +105,12 @@ glim/
 ## Status
 
 Firmware v1: barebones but complete — 3 channels, full joystick control,
-persistence. Hardware is a hand-soldered board; a proper PCB (and possibly a
-larger MCU) may follow. The whole design is written to survive that: pins and
-behaviour are all in `config.h`.
+persistence. Hardware is a hand-soldered board. The whole design is written to
+survive a move: pins and behaviour are all in `config.h`.
+
+**rev2 is specified** — ATtiny1616, 16-bit PWM (~6× deeper dimming), USB-C PD
+power, on-board IR remote and status pixel:
+[`hardware/rev2/`](hardware/rev2/README.md).
 
 Where it goes next — indicator LEDs, IR remote, up to 6 channels on the same
 chip, and the line where it hands off to lokki — is in
