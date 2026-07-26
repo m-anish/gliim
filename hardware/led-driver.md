@@ -513,10 +513,11 @@ Everything for a discrete channel, from hobby stores rather than distributors:
 | Part | Where |
 |---|---|
 | **PT4115** (SOT89-5) | [Sunrom](https://www.sunrom.com/p/pt4115-led-driver-with-dimming), [Hubtronics](https://hubtronics.in/1785) |
-| Inductor 68 µH shielded | Robu, Evelta, Quartz Components |
-| SS34 Schottky | any of them |
-| 0.3 Ω 1 % 0805, 10 kΩ, 100 nF | any of them |
-| 10 µF / 50 V X7R | any of them |
+| **Inductor 47 µH shielded, I_sat ≥ 1.2 A** | Robu, Evelta, Quartz Components — check the *saturation* spec, not just "1 A" |
+| SS34 Schottky (40 V) | any of them |
+| **0.15 Ω 1 % 1206** sense resistor | any of them (or 2 × 0.3 Ω 0805 in parallel) |
+| **4.7 µF / 50 V X7R 1206** | any of them — insist on **50 V** |
+| 10 kΩ, 100 nF, 100 µF / 35 V electrolytic | any of them |
 | XL6019 boost module | [Robu](https://robu.in/product/xl6019-dc-dc-5a-adjustable-boost-power-supply-module/), Zbotic, Quartz Components |
 | AO3400 / IRLZ44N | Robu, Evelta |
 

@@ -233,8 +233,8 @@ Full circuit, component values, and layout rules in
 
 1. **10 kΩ pulldown on each DIM line, right at the driver.** Non-optional — see
    §1 item 3 and the divider maths in the driver doc.
-2. Sense resistor sets current: `I_LED = 0.1 V / R_S`. 0.3 Ω ⇒ ~330 mA.
-3. Keep the D–L–LED–SW loop tight; that's the fast-switching loop.
+2. Sense resistor sets current: `I_LED = 0.1 V / R_S`. **0.15 Ω ⇒ 667 mA**, the design point; 0.3 Ω ⇒ 330 mA if you want it gentler.
+3. Keep the D–L–LED–SW loop tight; that's the fast-switching loop. And never put a capacitor across the LED string — it breaks the hysteretic loop.
 
 ### Input — pick one at populate time
 Both options share **PA1** (ADC) and **PA7** (switch), so the firmware only needs
