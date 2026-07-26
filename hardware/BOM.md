@@ -27,7 +27,7 @@ These change the BOM; defaults in brackets are what the rest of this doc assumes
 | # | Part | Qty | Role | ~Unit |
 |---|------|-----|------|-------|
 | 1 | **ATtiny814** (SOIC-14) | 1 | MCU — 3× PWM, 2× ADC, 1 button | $0.8 |
-| 2 | **PT4115 buck LED driver module** (7-pin: IN+/IN+/IN−/IN−/PWM/LED−/LED+) | 3 | one constant-current channel each | $1.2 |
+| 2 | **PT4115 LED driver** — discrete build preferred, see [led-driver.md](led-driver.md); modules also work | 3 | one constant-current channel each | ₹50 discrete / ₹130 module |
 | 3 | **DC-DC buck module → 5 V** | 1 | logic + joystick rail | $1.0 |
 | 4 | **Analog joystick module** (KY-023, 5-pin GND/5V/X/Y/SW) | 1 | the entire UI | $1.0 |
 | 5 | LED load (your lighting) | ≤5 / ch | the actual light | varies |
@@ -73,16 +73,16 @@ selected* — that's what Add-on C is for.)
 | 14 | 4.7 µF capacitor | 1 | supply filter (100 Ω + 4.7 µF), plus the 100 nF from row 7 | — |
 | 15 | **NEC IR remote** — 44-key RGB-strip remote *or* 17-key car-MP3 remote | 1 | the actual remote | $1.5 |
 
-- **Protocol:** NEC, 38 kHz. Both suggested remotes use it. Decode with a compact
-  hand-rolled NEC reader on **TCB0 input capture** (a few hundred bytes, fits the
-  minimalist budget) or the IRremote library for faster bring-up.
-- **Learn mode** (firmware, no extra parts) lets glim bind to *any* NEC remote —
-  including one your friend already owns. Recommended over hardcoding one remote's
-  codes, so a discontinued SKU never bricks the UI.
+- **Protocol:** NEC, 38 kHz. Both suggested remotes use it. Decoded by a compact
+  hand-rolled reader — a falling-edge ISR measuring edge-to-edge gaps, which is
+  all NEC needs. ✅ implemented.
+- **Learn mode** ✅ implemented — binds *any* NEC remote, including one your
+  friend already owns, so a discontinued SKU never bricks the UI. Hold the stick
+  3 s; see [../docs/controls.md](../docs/controls.md).
 - **Noise:** three switching drivers sit nearby. Use the 100 Ω + 4.7 µF supply
   filter, the 100 nF at the receiver pins, and mount the TSOP away from the
   drivers/inductors. Prefer TSOP38238 over VS1838B for AGC/noise immunity.
-- **Pin:** IR OUT → **PB0** (PA6 is taken by the status pixel, which is fitted).
+- **Pin:** IR OUT → **PB3** (physical pin 6). PA6 is the status pixel; PB0–PB2 are the LED PWM outputs.
 
 ## Add-on C — status pixel ✅ fitted
 
@@ -99,20 +99,21 @@ locator glow when everything is off.
 
 ## Pin allocation after add-ons
 
-| Pin | Assignment |
-|-----|------------|
-| PA0 | UPDI (program) |
-| PA1 / PA2 | Joystick X / Y (ADC) |
-| PA3 / PA4 / PA5 | LED PWM **+ indicator LEDs** (Add-on A) |
-| PA6 | **Status pixel data** (Add-on C) — fitted |
-| PA7 | Joystick SW |
-| PB0 | IR receiver OUT (Add-on B) — when it arrives |
-| PB1 / PB2 / PB3 | still free (I²C / UART / 3 more PWM channels) |
+| Pin | Physical | Assignment |
+|-----|---|------------|
+| PA0 | 10 | UPDI (program) — 1 kΩ series |
+| PA1 / PA2 | 11 / 12 | Joystick Y / X (ADC) |
+| PA3 | 13 | *free* |
+| PA4 / PA5 | 2 / 3 | *free* — debug SoftwareSerial TX/RX in `--debug` builds |
+| PA6 | 4 | **Status pixel data** (Add-on C) |
+| PA7 | 5 | Joystick SW |
+| PB0 / PB1 / PB2 | 9 / 8 / 7 | **LED PWM** (TCA0 WO0–WO2, 16-bit) **+ indicator LEDs** (Add-on A) |
+| PB3 | 6 | **IR receiver OUT** (Add-on B) |
 
-Everything above still fits the ATtiny814 with 3 spare pins. See
-[../ROADMAP.md](../ROADMAP.md) for where it goes past that (up to 6 channels on
-the same chip) and [../docs/hardware.md](../docs/hardware.md) for the pin-map
-rationale and programmer wiring.
+The LEDs sit on PB0–PB2 because those are the only TCA0 outputs that exist in
+16-bit normal mode — worth ~6× the dimming depth of the 8-bit split mode they
+started on. See [../docs/hardware.md](../docs/hardware.md) for the full rationale
+and [../ROADMAP.md](../ROADMAP.md) for what comes next.
 
 ## Rough cost (electronics, excl. PSU & LED load)
 

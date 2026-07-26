@@ -1,12 +1,44 @@
-# The PT4115 LED channel
+# The LED channel
 
-One of these per LED string. Everything here is derived from the PT4115 datasheet
-(Rev 2.9, [`PT4115-datasheet.pdf`](PT4115-datasheet.pdf)) — page references are to
-that document.
+Applies to **both revisions** — rev1 (hand-soldered, ATtiny814) and rev2. Building
+the PT4115 circuit discretely instead of buying ready-made modules is cheaper and
+gives you control over the current setpoint; the whole channel is six parts.
+
+Everything here is derived from the PT4115 datasheet (Rev 2.9,
+[`PT4115-datasheet.pdf`](PT4115-datasheet.pdf)) — page references are to that
+document.
 
 **Headline numbers:** 6–30 V in, up to 1.2 A out, ~97 % efficient with a long
 string, and `I_LED = 0.1 V / R_S`. It is a *hysteretic* buck — no compensation
 network, no oscillator, just an inductor, a diode and a sense resistor.
+
+---
+
+## 0. Pick the topology first
+
+Two questions decide everything. Get these wrong and no amount of component
+tuning helps.
+
+**(a) What kind of LED load is it?**
+
+- **Constant-current** — bare emitters, star PCBs, COBs, "3 W white LED". No
+  resistors built in; something must regulate the *current*. → PT4115.
+- **Constant-voltage** — 12 V or 24 V flexible strip. Current-limiting resistors
+  are already on the strip; it just wants a stable rail. → **no CC driver at
+  all**, see §9.3. This is cheaper *and* dims deeper.
+
+**(b) Is the supply above or below the string voltage?**
+
+The PT4115 is a **buck**: `V_IN` must exceed the string's total forward voltage
+by ~3 V. White LEDs are ~3.2 V each, so on a 20 V USB-C PD rail you get 5 LEDs
+per channel. Want more?
+
+| Situation | Answer |
+|---|---|
+| V_IN > V_string + 3 V | **PT4115 buck** — this document |
+| Need more *light*, not more LEDs | Raise `I_LED` (§2) or add channels. Usually the right answer — see §9.1 |
+| Genuinely need a 20–30 V string from a lower rail | **Boost the rail, then buck per channel** — §9.2 |
+| CV LED strip at 12 V / 24 V | **MOSFET per channel** — §9.3 |
 
 ---
 
@@ -282,7 +314,129 @@ IC a modest ground pour and move on.
 
 ---
 
-## 9. On the AL8862
+## 9. When the supply is below the string
+
+### 9.1 First: do you actually need a longer string?
+
+Usually not. "More light" and "more LEDs in series" are different things, and the
+PT4115 gives you the first for free — it drives up to **1.2 A**. On a 20 V rail:
+
+| Per channel | R_S | Power/ch | 3 channels |
+|---|---|---|---|
+| 5 LEDs @ 330 mA | 0.3 Ω | 5.3 W | 16 W |
+| 5 LEDs @ 700 mA | 0.15 Ω | 11 W | **34 W** |
+| 5 LEDs @ 1.0 A | 0.1 Ω | 16 W | 48 W |
+
+34 W of white LED is a *lot* of light for a room. Raising current costs one
+resistor value and needs no new topology; boosting costs a converter stage,
+~10 % efficiency, extra noise near the IR receiver, and board area. **Try the
+resistor first.**
+
+Adding channels is the other cheap answer — the ATtiny1616 in rev2 has six PWM
+outputs, and the joystick UI already wraps through however many exist.
+
+### 9.2 If you do: boost the rail, then buck per channel
+
+Dedicated *boost* constant-current LED driver ICs with a proper dimming pin
+(CAT4139, TPS61165, AP3031 and friends) are excellent, but they are not stocked
+by the Indian hobby shops — they're distributor parts. Rather than design around
+something you can't buy, use two stages:
+
+```
+  12–20 V in ──► [ XL6019 boost module ] ──► 28 V rail ──┬──► PT4115 #1 ──► 8 LEDs
+                   set output to 28 V                    ├──► PT4115 #2 ──► 8 LEDs
+                                                         └──► PT4115 #3 ──► 8 LEDs
+```
+
+The boost only makes a rail; each PT4115 still does per-channel constant current
+**and keeps its 5000:1 PWM dimming**. Nothing about the firmware changes.
+
+Boost modules stocked in India, all commodity parts:
+
+| Module | In | Out | Current | ~Price | Notes |
+|---|---|---|---|---|---|
+| **XL6019** | 3–35 V | 5–40 V | 5 A | ₹230 | Best fit. 220 kHz. [Robu](https://robu.in/product/xl6019-dc-dc-5a-adjustable-boost-power-supply-module/) |
+| XL6009 | 3–32 V | 5–35 V | 4 A | ₹150 | Fine, slightly less headroom |
+| MT3608 | 2–24 V | ≤28 V | 2 A | ₹60 | Only for one small channel |
+| "400 W" CC/CV boost | 8–60 V | 10–60 V | high | ₹450 | Overkill; use if you want >30 W |
+
+**Rules for this arrangement:**
+
+1. **Set the boost to 28 V, not 30 V+.** The PT4115's *recommended* max input is
+   30 V (45 V absolute). 28 V leaves margin for boost overshoot and still drives
+   ~8 white LEDs (25.6 V) with the 3 V headroom the buck wants.
+2. **Efficiency compounds:** ~90 % (boost) × ~95 % (buck) ≈ **85 %** overall,
+   versus ~95 % for a direct buck. That is the real price of boosting.
+3. **Fuse the input.** A boost converter has a DC path — inductor and diode —
+   straight from input to output, so it *cannot* current-limit an output short.
+   The switcher shutting down does not save you.
+4. **Add bulk between the stages:** ≥220 µF plus a 10 µF ceramic at the boost
+   output, and keep the module physically away from the IR receiver. Two
+   switchers (220 kHz and ~500 kHz) is twice the broadband noise for a 38 kHz
+   front-end to reject.
+
+### 9.3 CV LED strip: skip the driver entirely
+
+If the load is a 12 V or 24 V flexible strip, it already has its resistors. A
+constant-current driver is the wrong tool — you want a rail at the strip's
+voltage and one low-side N-MOSFET per channel, switched straight from the MCU:
+
+```
+   V_strip (12 V / 24 V)
+        │
+   ┌────┴─────┐
+   │  strip   │
+   └────┬─────┘
+        │
+        ├──────────────●  drain
+        │           ┌──┴──┐
+   PWM ─┤100R├──────┤ G   │  AO3400 (30 V, 5.7 A, logic-level)
+        │           └──┬──┘
+       │R│ 10k         │ source
+        │              │
+       GND ───────────GND
+```
+
+- **Any logic-level N-MOSFET** with `V_GS(th)` well under 5 V: **AO3400** (SOT-23,
+  ≤3 A) or **IRLZ44N / AOD4184** (TO-220, higher current). Ordinary IRF540 is
+  *not* logic-level — it won't fully enhance at 5 V.
+- **100 Ω gate resistor**, and a **10 kΩ gate pulldown** — same reasoning as the
+  DIM pulldown in §5: it holds the channel off while the MCU boots.
+- At 305 Hz, switching losses are irrelevant; the FET runs cold.
+
+**The bonus:** a MOSFET has no minimum on-time. The PT4115's ~2 µs floor caps
+dimming at ~1640:1 at 305 Hz — a FET is limited only by PWM resolution, so
+16-bit gives you the full **65536:1**, smoothly, right down to a single count.
+If deep dimming matters more than using bare emitters, a CV strip plus MOSFETs is
+the deepest-dimming option available here, and by far the cheapest per channel.
+
+---
+
+## 10. Sourcing (India)
+
+Everything for a discrete channel, from hobby stores rather than distributors:
+
+| Part | Where |
+|---|---|
+| **PT4115** (SOT89-5) | [Sunrom](https://www.sunrom.com/p/pt4115-led-driver-with-dimming), [Hubtronics](https://hubtronics.in/1785) |
+| Inductor 68 µH shielded | Robu, Evelta, Quartz Components |
+| SS34 Schottky | any of them |
+| 0.3 Ω 1 % 0805, 10 kΩ, 100 nF | any of them |
+| 10 µF / 50 V X7R | any of them |
+| XL6019 boost module | [Robu](https://robu.in/product/xl6019-dc-dc-5a-adjustable-boost-power-supply-module/), Zbotic, Quartz Components |
+| AO3400 / IRLZ44N | Robu, Evelta |
+
+**SOT89-5 hand-solders easily** — it's a large package with 1.5 mm pitch and a
+tab, far friendlier than the SOIC-8. That's what makes the discrete build
+realistic for rev1's hand-soldered board.
+
+Rough cost per discrete channel: **PT4115 ~₹25 + inductor ~₹15 + SS34 ~₹5 +
+passives ~₹5 ≈ ₹50**, against ~₹120–150 for a ready-made module — and you get to
+choose `R_S` instead of accepting whatever the module was built for.
+
+---
+
+## 11. On the AL8862
 
 The AL8862 (Diodes Inc.) is the same hysteretic-buck idea at 40 V / 1.5 A and is
 often suggested as a higher-voltage PT4115. **Do not assume it drops in.** Before

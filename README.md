@@ -97,8 +97,9 @@ glim/
 │   ├── flash.sh         build/flash/monitor wrapper (start here)
 │   └── find-port.sh     locate the USB-serial programmer
 ├── hardware/
+│   ├── led-driver.md    the LED channel: PT4115, boost options, CV strips
 │   ├── BOM.md           rev1 parts list + build plan
-│   └── rev2/            next board: spec, PT4115 circuit, input circuits
+│   └── rev2/            next board: spec + input circuits
 ├── ROADMAP.md          where it goes next
 └── docs/
     ├── hardware.md      wiring, power, pin-map rationale, programmer

@@ -21,23 +21,27 @@ are.
 
 Current pin usage and what's left to build on:
 
-| Pin | Now | Free for |
+| Pin | Now | Notes |
 |-----|-----|----------|
 | PA0 | UPDI | (programming) |
-| PA1 | Joystick X (ADC) | — |
-| PA2 | Joystick Y (ADC) | — |
-| PA3/PA4/PA5 | LED PWM (TCA0 WO3/4/5) | + indicator LEDs piggyback here |
-| PA6 | **free** | ADC / DAC / status LED |
+| PA1 / PA2 | Joystick Y / X (ADC) | — |
+| PA3 | **free** | — |
+| PA4 / PA5 | **free** | debug SoftwareSerial in `--debug` builds |
+| PA6 | Status pixel (WS2812) | ✅ fitted |
 | PA7 | Joystick SW | — |
-| PB0/PB1 | **free** | I²C (SDA/SCL), ADC, or 2 more PWM (WO0/WO1) |
-| PB2/PB3 | **free** | UART (TX/RX), 1 more PWM (WO2), or 32 kHz crystal |
+| PB0/PB1/PB2 | LED PWM (TCA0 WO0–WO2) | 16-bit; + indicator LEDs piggyback here |
+| PB3 | IR receiver | ✅ implemented |
 
-**Free peripherals:** TCB0, TCD0, RTC, analog comparator, DAC, CCL, EVSYS,
-USART0, TWI0, SPI0. Plenty.
+**Free peripherals:** TCB0, RTC, analog comparator, DAC, CCL, EVSYS, TWI0, SPI0.
+(TCD0 is millis; TCA0 is the PWM; USART0 is unusable — its TXD is PB2.)
 
-One number worth remembering: **TCA0 split mode has six outputs** (WO0–WO2 →
-PB0/PB1/PB2, WO3–WO5 → PA3/PA4/PA5). The 814 can drive **6 hardware PWM channels**
-before you ever need a bigger chip — see Tier 2.
+The pin budget is now essentially full — which is the honest signal that further
+growth belongs on rev2's ATtiny1616 rather than here.
+
+**The channels/resolution trade:** TCA0 split mode has six outputs (WO0–WO2 →
+PB0/1/2, WO3–WO5 → PA3/4/5) but is 8-bit; normal mode has three and is 16-bit.
+glim ships normal mode — for a dimmer, depth beats channel count. Six 8-bit
+channels remain available as a config change if you ever want them.
 
 ---
 
@@ -64,7 +68,7 @@ Small parts, one or two pins each. Pick à la carte.
 
 | Item | Cost | Value | Detail |
 |------|------|-------|--------|
-| **3 channel indicator LEDs** | LED + 1 kΩ per channel, **0 pins** | Live brightness meter at the joystick | Piggyback on PA3/PA4/PA5. Brightness mirrors each channel's level for free. Shows *level*, not *selection*. |
+| **3 channel indicator LEDs** | LED + 1 kΩ per channel, **0 pins** | Live brightness meter at the joystick | Piggyback on PB0/PB1/PB2. Brightness mirrors each channel's level for free. Shows *level*, not *selection*. |
 | **1 status LED / pixel** | 1 pin (PA6) | Persistent "which channel is selected" | A single bicolor LED, or one WS2812 (megaTinyCore has `tinyNeoPixel`) → selected channel = color, plus all-off/booting states. This is the missing half of the indicator story. |
 | **IR receiver** | 3-pin TSOP (e.g. 38 kHz), 1 pin | **Couch control** — huge for a home | Decode NEC with TCB0 input-capture. Map remote keys to brightness / channel / on-off / scenes alongside the joystick. Probably the single most useful add for the actual use case. |
 | **Ambient light sensor** | LDR/phototransistor + resistor, 1 ADC pin (PA6) | Auto-cap brightness in daylight | Optional, behind a config flag — glim stays manual-first. (This is a lokki idea scaled down.) |
@@ -78,7 +82,7 @@ Small parts, one or two pins each. Pick à la carte.
 ## Tier 2 — rev2 PCB ✅ specified
 
 **Full specification: [`hardware/rev2/`](hardware/rev2/README.md)** — board spec,
-[PT4115 driver circuit](hardware/rev2/led-driver.md), and
+[LED driver circuit](hardware/led-driver.md), and
 [input circuits](hardware/rev2/input.md).
 
 Headline: ATtiny1616, **16-bit PWM** (the PT4115's real floor is a 2 µs on-time,
