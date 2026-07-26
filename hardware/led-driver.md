@@ -48,8 +48,9 @@ per channel. Want more?
    V_LED (20 V)
      ●─────────────┬───────────────────┐
      │             │                   │
-    ═╪═ C_IN      │R_S│ 0.3R 1%        │      ┌──────── to next channel
-    10µ/50V        │                   │      │
+    ═╪═ C_IN      │R_S│ 0.15R 1%       │      ┌──────── to next channel
+   4µ7/50V         │   1206            │      │
+   (§4)            │                   │      │
      │        ┌────┴────┐          ┌───┴──────┴─┐
      ├────────┤ VIN     │          │            │
      │        │     CSN ├──────────●────────────┼──►│LED string│──┐
@@ -59,8 +60,8 @@ per channel. Want more?
      │        │      SW ├──────────●──────────  ▲   SS34          │
      │        │         │       node B       ──┬──                │
      │        │     DIM │          │           │                  │
-     │        │     GND │          └───────────┴────[ L 68µH ]────┘
-     │        └────┬──┬─┘
+     │        │     GND │          └───────────┴────[ L 47µH ]────┘
+     │        └────┬──┬─┘                            Isat ≥ 1.2 A
      │             │  │
      │             │  └──────●───── DIM  ◄─── from MCU (PB0/PB1/PB2)
      │             │         │
@@ -68,6 +69,18 @@ per channel. Want more?
      │             │         │
      ●─────────────┴─────────┴──── GND
 ```
+
+**Design point used throughout this document: `R_S = 0.15 Ω` ⇒ 667 mA per
+channel.** That's ~10.7 W of LED per channel on a 20 V rail with five white LEDs,
+32 W across three channels — a bright room fixture. Every value below follows
+from it; §2 has the table if you want a different current.
+
+> **Never put a capacitor across the LED string.** This is a *hysteretic*
+> converter: the inductor current *is* the LED current, and the controller
+> regulates by watching it ramp between 85 mV and 115 mV across `R_S`. A parallel
+> output cap smooths that ramp, and the loop loses its timing reference —
+> erratic frequency, audible whine, or no regulation at all. The PT4115's own
+> application circuit has no output capacitor, and that's deliberate.
 
 Current path, switch **on**: `V_LED → R_S → LED → L → SW → GND`.
 Switch **off**: the inductor keeps the current going and it freewheels
@@ -87,22 +100,26 @@ I_LED = 100 mV / R_S          (p5)
 P_RS  = I²·R_S = 0.01 / R_S   ← note: lower R_S dissipates MORE
 ```
 
-| I_LED | R_S (E24, 1 %) | P in R_S | Package |
-|---|---|---|---|
-| 100 mA | 1.0 Ω | 10 mW | 0805 |
-| 200 mA | 0.5 Ω | 20 mW | 0805 |
-| **330 mA** | **0.3 Ω** | **33 mW** | **0805** |
-| 370 mA | 0.27 Ω | 37 mW | 0805 |
-| 500 mA | 0.2 Ω | 50 mW | 0805 |
-| 670 mA | 0.15 Ω | 67 mW | 0805 |
-| 770 mA | 0.13 Ω | 77 mW | 1206 |
-| 1.0 A | 0.1 Ω | 100 mW | 1206 |
+| I_LED | R_S (E24, 1 %) | P in R_S | 0805 (125 mW) | 1206 (250 mW) |
+|---|---|---|---|---|
+| 100 mA | 1.0 Ω | 10 mW | 8 % | — |
+| 200 mA | 0.5 Ω | 20 mW | 16 % | — |
+| 330 mA | 0.3 Ω | 33 mW | 27 % | — |
+| 500 mA | 0.2 Ω | 50 mW | 40 % | 20 % |
+| **667 mA** | **0.15 Ω** | **67 mW** | 53 % | **27 %** ✅ |
+| 770 mA | 0.13 Ω | 77 mW | 62 % | 31 % |
+| 1.0 A | 0.1 Ω | 100 mW | 80 % ✗ | 40 % |
 
-Use a **1 % resistor** — the datasheet's ±5 % output accuracy assumes it (p5).
-Above ~700 mA prefer 1206 and the **ESOP8** package (thermal pad).
+**The design point is `R_S = 0.15 Ω`, 1 %, 1206.**
 
-**330 mA is the sensible default** for indoor lighting: cool, efficient, long
-LED life, and it lands on a stock 0.3 Ω part.
+- **Why 1206 rather than 0805.** 67 mW is 53 % of an 0805's rating — legal, but
+  it runs hot, and a hot sense resistor drifts, which shows up directly as LED
+  current error. 1206 sits at 27 % and stays cool. The part costs the same.
+- **1 % is not optional** — the datasheet's ±5 % output accuracy assumes a 1 %
+  sense resistor (p5). A 5 % resistor makes the whole current spec meaningless.
+- If you only have 0805s: **two 0.3 Ω in parallel** gives 0.15 Ω and halves the
+  dissipation to 33 mW each. Perfectly good, and often cheaper than stocking a
+  second package.
 
 > **Lowering full-scale current is also the blunt way to dim deeper.** If the
 > fixture turns out too bright at 100 %, raising R_S recentres the whole range
@@ -121,37 +138,63 @@ t_off = ΔI·L / (V_LED + V_f)
 f_sw  = 1 / (t_on + t_off)
 ```
 
-**1 MHz is the hard maximum** (p3); 400–800 kHz is a comfortable target. Since
-`f_sw ∝ 1/(I_LED · L)`, inductance scales inversely with current — roughly
-`L × I_LED ≈ 22 µH·A`:
+**1 MHz is the hard maximum** (p3); 300–800 kHz is a comfortable target. At
+667 mA the ripple is fixed at `ΔI = 0.3 × 0.667 = 200 mA`, so `f_sw` depends only
+on L and the string length:
 
-| I_LED | L | Isat rating | f_sw @ 20 V (1→5 LEDs) |
+| L | f_sw @ 20 V: 1 → 5 LEDs | Peak | Verdict |
 |---|---|---|---|
-| **330 mA** | **68 µH** | ≥ 0.6 A | 440 – **757** – 478 kHz |
-| 500 mA | 47 µH | ≥ 0.9 A | 421 – **723** – 456 kHz |
-| 770 mA | 33 µH | ≥ 1.2 A | 389 – **669** – 422 kHz |
-| 1.2 A | 22 µH | ≥ 1.8 A | 374 – **644** – 406 kHz |
+| 33 µH | 449 – 687 – **772** – 706 – 487 kHz | 772 kHz | OK, smaller part |
+| **47 µH** | 315 – 482 – **542** – 496 – 342 kHz | **542 kHz** | ✅ **use this** |
+| 68 µH | 218 – 333 – **375** – 343 – 236 kHz | 375 kHz | fine, bulkier |
 
-Worked example — 330 mA, 68 µH, 20 V rail, 5 LEDs (V_LED ≈ 16 V):
+**47 µH** is the pick: comfortable margin under 1 MHz at every string length, a
+physically small part, and it is what the datasheet's own efficiency curves use
+at almost exactly this current (47 µH with R_S = 0.13 Ω, p6).
+
+Worked example — 667 mA, 47 µH, 20 V rail, 5 LEDs (V_LED ≈ 16 V):
 ```
-ΔI    = 0.3 × 0.33 A = 99 mA
-t_on  = 0.099 × 68µ / (20 − 16)   = 1.68 µs
-t_off = 0.099 × 68µ / (16 + 0.4)  = 0.41 µs
-f_sw  = 1 / 2.09 µs ≈ 478 kHz ✓
+ΔI    = 0.3 × 0.667 A = 200 mA
+t_on  = 0.200 × 47µ / (20 − 16)   = 2.35 µs
+t_off = 0.200 × 47µ / (16 + 0.4)  = 0.57 µs
+f_sw  = 1 / 2.92 µs ≈ 342 kHz ✓
 ```
 
 > **Size L for your *shortest* string, not your longest.** `f_sw` peaks when
-> `V_LED ≈ V_IN/2` — with 68 µH at 330 mA on a 20 V rail that's 757 kHz at three
-> LEDs, versus 478 kHz at five. A value that looks relaxed on a long string can
-> run near the 1 MHz limit on a short one.
->
-> The datasheet's typical-application pairing (68 µH with R_S = 0.13 Ω, i.e.
-> 770 mA) targets a lower-voltage rail; on a 20 V/5-LED rail that combination
-> gives only ~205 kHz. Use the table above for this design.
+> `V_LED ≈ V_IN/2` — with 47 µH that's 542 kHz at three LEDs versus 342 kHz at
+> five. A value that looks relaxed on a long string runs fastest on a mid-length
+> one, so read the peak column, not the 5-LED column.
 
-**Requirements:** rate `Isat ≥ 1.5 × I_LED` (peak is 1.15× and saturation is a
-cliff, not a slope); use a **shielded** part — unshielded drums radiate into the
-IR receiver; low DCR (< 0.5 Ω) for efficiency.
+### Saturation current — the rating people get wrong
+
+The hysteretic loop swings the current ±15 % about the mean (85 mV to 115 mV
+across `R_S`), so the inductor actually sees:
+
+```
+I_min = 0.85 × 667 mA = 567 mA
+I_max = 1.15 × 667 mA = 767 mA   ← this is what saturates the core
+I_rms ≈ 667 mA                   ← this is what heats it
+```
+
+Inductors quote **two** current ratings and you need to check both:
+
+| Rating | Meaning | Requirement | **Spec it at** |
+|---|---|---|---|
+| **I_sat** | current at which L has dropped (usually −30 %) | ≥ 1.5 × 767 mA peak | **≥ 1.2 A** |
+| **I_rms** / I_dc | current for a ~40 °C rise | ≥ 667 mA + margin | **≥ 0.8 A** |
+
+The 1.5× on saturation is not padding. Saturation is a **cliff, not a slope**: as
+L collapses, ΔI grows, which raises the peak, which saturates it further — and
+the PT4115 has no cycle-by-cycle current limit to catch that runaway. Add
+power-up inrush and the fact that I_sat falls with temperature, and 1.2 A is the
+honest number for a 667 mA design. **A part whose saturation rating is "1 A" is
+not enough** — look for 1.2–1.5 A.
+
+So: **47 µH, I_sat ≥ 1.2 A, I_rms ≥ 0.8 A, shielded.**
+
+Use a **shielded** part — unshielded drum cores radiate straight into the IR
+receiver's band at 300–800 kHz — and keep DCR under ~0.3 Ω. At 667 mA a 0.5 Ω
+DCR burns 220 mW, more than the IC itself dissipates.
 
 ---
 
@@ -164,15 +207,57 @@ dominates the loss budget.
 | | Requirement | Part |
 |---|---|---|
 | V_R | ≥ V_IN + margin | 40 V for a 20 V rail |
-| I_F(av) | ≥ I_LED | 1 A is plenty at 330 mA |
-| Type | Schottky, low V_f | **SS34** (40 V / 3 A) — cheap and stocked |
+| I_F(av) | ≥ I_LED × (1−D) | 560 mA worst case (1 LED); 133 mA at 5 LEDs |
+| Type | Schottky, low V_f | **SS34** (40 V / 3 A) — cheap, stocked, heavily over-rated |
 
-**C_IN — "must be locally bypassed"** (p2, pin description). Per channel: **10 µF
-/ 50 V X7R ceramic** as close to VIN/GND as the layout allows, plus one shared
-**100 µF / 35 V** electrolytic on the rail for bulk.
+Note the diode carries *most* of the current on **short** strings (low duty), not
+long ones. SS34 covers every case here with room to spare.
 
-> Ceramic DC-bias derating is real: a 10 µF/25 V X7R at 20 V can be under 4 µF of
-> actual capacitance. Spec **50 V** parts on a 20 V rail and you keep most of it.
+### C_IN — will one 4.7 µF 1206 X7R do?
+
+**Yes — provided it is rated 50 V, not 25 V.** That caveat is the whole answer,
+because MLCC capacitance collapses under DC bias and the effect is much worse
+when you run near the part's rating.
+
+What the capacitor has to do, at 667 mA with 5 LEDs (D = 0.80, f_sw = 342 kHz):
+
+```
+ripple current   I_rms = I_LED × √(D(1−D)) = 267 mA   (333 mA worst case at D=0.5)
+charge per cycle Q     = I_LED × (1−D) × t_on = 312 nC
+input ripple     ΔV    = Q / C_eff
+```
+
+Now the DC-bias reality for a 1206 X7R at 20 V:
+
+| Part | Typical retention @ 20 V | C_eff | ΔV | Verdict |
+|---|---|---|---|---|
+| 4.7 µF **50 V** | ~60 % | 2.8 µF | **111 mV** (0.6 %) | ✅ **fine — use this** |
+| 2 × 4.7 µF 50 V | ~60 % | 5.6 µF | 56 mV (0.3 %) | nicer, optional |
+| 4.7 µF **25 V** | ~30 % | 1.4 µF | 223 mV (1.1 %) | works, but 2× the ripple |
+| 4.7 µF 16 V | falls off a cliff | — | — | ✗ don't |
+
+So **one 4.7 µF / 50 V / X7R / 1206 per channel is enough.** 111 mV of ripple on
+a 20 V rail is a non-issue, and 267 mA of ripple current is trivial for an MLCC.
+A second in parallel is a cheap improvement if you have the board space, and
+becomes worthwhile if you can only source 25 V parts.
+
+Three things that matter more than the exact value:
+
+1. **Voltage rating, not capacitance, is the lever.** Going 4.7 µF/25 V →
+   4.7 µF/50 V roughly *doubles* the effective capacitance at 20 V. Going
+   4.7 µF → 10 µF at the same 25 V rating buys much less than the label suggests.
+   1206 also derates more gently than 0805 for the same value — more dielectric
+   volume — which is another reason to stay at 1206 here.
+2. **Placement beats size.** The cap must sit within a few millimetres of the VIN
+   and GND pins; loop inductance past ~10 mm undoes the benefit entirely. See §6.
+3. **You still need bulk.** Add one shared **100 µF / 35 V electrolytic** on the
+   rail. It is not there for ripple — the ceramics handle that — but to damp the
+   LC ringing between your supply cable's inductance and an all-ceramic input,
+   which can overshoot well past 20 V on hot-plug. With three channels sharing a
+   rail this is doubly worth it.
+
+**Summary for one channel:** `4.7 µF / 50 V / X7R / 1206` at the pin +
+`100 µF / 35 V` electrolytic shared across the board.
 
 ---
 
@@ -292,24 +377,33 @@ P ≈ I_LED² × R_SW × D        R_SW = 0.4 Ω @ 24 V, 0.6 Ω @ 12 V  (p4)
                              D    = V_LED / V_IN
 ```
 
-At 330 mA, 20 V, 5 LEDs (D = 0.8): `P = 0.33² × 0.4 × 0.8 = 35 mW` — negligible,
-~1.5 °C rise. Even at 1 A it's ~0.32 W ⇒ ~14 °C. Thermal shutdown is at 160 °C
-with 20 °C hysteresis (p4), and `P_DMAX` is 1.5 W (p2).
+At **667 mA**, 20 V, 5 LEDs (D = 0.8): `P = 0.667² × 0.4 × 0.8 = 142 mW`. With
+SOT89-5's θ_JA of 45 °C/W (p2) that is a **6.4 °C rise** — nothing. ESOP8 would
+give 5.7 °C, so its thermal pad buys you almost nothing at this current; **plain
+SOT89-5 is the right package here**, and it hand-solders far more easily.
 
-**Conclusion: at ≤500 mA per channel, thermal design is a non-issue.** Give each
-IC a modest ground pour and move on.
+Thermal shutdown is at 160 °C with 20 °C hysteresis (p4), and `P_DMAX` is 1.5 W
+(p2) — we're at 9 % of it.
+
+**Conclusion: at 667 mA thermal design is a non-issue.** Give each IC a modest
+ground pour and move on. Only past ~1 A does the package choice start to matter.
 
 ---
 
 ## 8. Sanity checklist per channel
 
+Values below are the 667 mA design point (`R_S` = 0.15 Ω, 20 V rail, ≤5 LEDs):
+
 - [ ] `V_IN ≥ V_LED + 3 V` at the hottest the LEDs will run
-- [ ] `R_S` 1 %, correct package for `0.01/R_S` watts
-- [ ] `L`: Isat ≥ 1.5 × I_LED, shielded, f_sw lands in 300 kHz–1 MHz
-- [ ] `D`: Schottky, V_R ≥ V_IN + margin
-- [ ] `C_IN`: 10 µF/50 V ceramic *at the pin*
+- [ ] `R_S` = **0.15 Ω, 1 %, 1206** (or 2 × 0.3 Ω 0805 in parallel)
+- [ ] `L` = **47 µH, I_sat ≥ 1.2 A, I_rms ≥ 0.8 A, shielded**, DCR < 0.3 Ω
+- [ ] `D` = **SS34** (40 V Schottky)
+- [ ] `C_IN` = **4.7 µF / 50 V / X7R / 1206** *at the pin* — 50 V, not 25 V
+- [ ] One shared **100 µF / 35 V** electrolytic on the rail
+- [ ] **No capacitor across the LED string** (§1)
 - [ ] **10 kΩ DIM pulldown fitted**
 - [ ] Kelvin sense traces on `R_S`
+- [ ] Supply can deliver **1.7 A at 20 V** for three channels (≥45 W charger)
 - [ ] MCU pin idles LOW in firmware before anything else runs
 
 ---
@@ -324,7 +418,7 @@ PT4115 gives you the first for free — it drives up to **1.2 A**. On a 20 V rai
 | Per channel | R_S | Power/ch | 3 channels |
 |---|---|---|---|
 | 5 LEDs @ 330 mA | 0.3 Ω | 5.3 W | 16 W |
-| 5 LEDs @ 700 mA | 0.15 Ω | 11 W | **34 W** |
+| **5 LEDs @ 667 mA** | **0.15 Ω** | **10.7 W** | **32 W** ← design point |
 | 5 LEDs @ 1.0 A | 0.1 Ω | 16 W | 48 W |
 
 34 W of white LED is a *lot* of light for a room. Raising current costs one

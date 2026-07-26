@@ -192,8 +192,10 @@ are both more efficient and cheaper per lumen.
 Leave ≥3 V of headroom between V_IN and the string's Vf so the driver stays in
 regulation as the LEDs warm up.
 
-Budget at 20 V, 3 channels × 5 LEDs × 330 mA: **≈16 W of LED power, ≈0.85 A
-input**. A 20 V/1.5 A (30 W) charger suffices; a 60 W one is comfortable.
+Budget at 20 V, 3 channels × 5 LEDs at the **667 mA** design point: **≈32 W of
+LED power, ≈1.7 A input**. That needs a **45 W or larger** PD charger — a
+20 V/1.5 A (30 W) one is *not* enough. At the gentler 330 mA it is ≈16 W / 0.85 A
+and 30 W suffices.
 
 ### 5 V logic rail
 
@@ -281,10 +283,10 @@ anything but UPDI.
 |---|---|---|---|
 | 1 | ATtiny1616-SNR (SOIC-20) | 1 | or ATtiny3216 |
 | 2 | PT4115 (SOT89-5 or ESOP8) | 3 | ESOP8 has a thermal pad — prefer it >500 mA |
-| 3 | Inductor 68 µH, Isat ≥ 0.6 A | 3 | shielded; see driver doc for current scaling |
+| 3 | Inductor 47 µH, **I_sat ≥ 1.2 A**, I_rms ≥ 0.8 A | 3 | shielded; scale with current per driver doc |
 | 4 | Schottky SS34 (40 V/3 A) | 3 | |
-| 5 | Sense resistor, 1 %, 0805 | 3 | 0.3 Ω ⇒ 330 mA (see table in driver doc) |
-| 6 | 10 µF / 50 V ceramic (X7R) | 3 | one per driver, at V_IN |
+| 5 | Sense resistor, 1 %, **1206** | 3 | **0.15 Ω ⇒ 667 mA** (see table in driver doc) |
+| 6 | **4.7 µF / 50 V X7R 1206** | 3 | one per driver, at V_IN — 50 V matters, see driver doc |
 | 7 | 100 µF / 35 V electrolytic | 1 | bulk on the LED rail |
 | 8 | 10 kΩ resistor | 3 | **DIM pulldowns — mandatory** |
 | 9 | USB-C PD decoy board | 1 | jumper to 20 V |
@@ -328,5 +330,5 @@ Roughly in order:
 | 3 channels at 16-bit, or 6 at 8-bit? | **3 × 16-bit** — dimming depth beats channel count here |
 | Joystick or 5-way ladder? | Fit both footprints, populate the **5-way** |
 | One cable (buck) or two (second USB-C)? | **One cable**, buck from the LED rail |
-| LED current per channel? | Sets R_S — needs the actual fixture/LED choice |
+| LED current per channel? | **667 mA** (R_S = 0.15 Ω) — revisit against the actual fixture |
 | Analog deep-dimming (§2 of driver doc)? | **Skip.** 16-bit PWM already reaches the driver's own 5000:1 limit |
