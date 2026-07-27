@@ -75,12 +75,10 @@ channel.** That's ~10.7 W of LED per channel on a 20 V rail with five white LEDs
 32 W across three channels — a bright room fixture. Every value below follows
 from it; §2 has the table if you want a different current.
 
-> **Never put a capacitor across the LED string.** This is a *hysteretic*
-> converter: the inductor current *is* the LED current, and the controller
-> regulates by watching it ramp between 85 mV and 115 mV across `R_S`. A parallel
-> output cap smooths that ramp, and the loop loses its timing reference —
-> erratic frequency, audible whine, or no regulation at all. The PT4115's own
-> application circuit has no output capacitor, and that's deliberate.
+> **On a capacitor across the LED string:** the datasheet does document one (p13,
+> *Reducing output ripple*) and it is perfectly safe — it does *not* destabilise
+> the loop, because `R_S` senses the **inductor** current and the inductor stays
+> in series. glim still leaves it off, but for a different reason. See §4.3.
 
 Current path, switch **on**: `V_LED → R_S → LED → L → SW → GND`.
 Switch **off**: the inductor keeps the current going and it freewheels
@@ -190,6 +188,53 @@ power-up inrush and the fact that I_sat falls with temperature, and 1.2 A is the
 honest number for a 667 mA design. **A part whose saturation rating is "1 A" is
 not enough** — look for 1.2–1.5 A.
 
+### What the datasheet itself specifies (p12)
+
+Worth checking your choice against PowTech's own table rather than only the
+formula:
+
+| Load current | Inductor | Saturation current |
+|---|---|---|
+| I_out > 1 A | 27–47 µH | \ |
+| 0.8 A < I_out ≤ 1 A | 33–82 µH | 1.3–1.5 × load current |
+| **0.4 A < I_out ≤ 0.8 A** | **47–100 µH** ← we are here | / |
+| I_out ≤ 0.4 A | 68–220 µH | |
+
+667 mA lands in the 47–100 µH band, so **47 µH sits right at the fast end of the
+recommended range** — which is what we want (smaller part, still 531 kHz peak).
+Their saturation rule is 1.3–1.5 × *load* (0.87–1.0 A) plus "higher than the peak
+output current"; **our 1.2 A spec is deliberately more conservative than both**,
+for the runaway reason above. Keep it.
+
+The datasheet also names real parts, with saturation ratings — all comfortably
+past our requirement:
+
+| Part | L | DCR | I_sat | I²R at 667 mA |
+|---|---|---|---|---|
+| MSS1038-333 | 33 µH | 0.093 Ω | 2.3 A | 41 mW |
+| **MSS1038-473** | **47 µH** | **0.128 Ω** | **2.0 A** | **57 mW** ← the match |
+| MSS1038-683 | 68 µH | 0.213 Ω | 1.6 A | 95 mW |
+
+Coilcraft parts are hard to buy in India, but they give you the **spec shape to
+match**: 47 µH, DCR ≈ 0.13 Ω, I_sat ≈ 2 A, shielded. Any equivalent will do.
+
+### Parasitics knock ~12 % off
+
+The formulas above ignore resistive drops. The datasheet's full versions (p12)
+don't:
+
+```
+T_ON  = L·ΔI / (V_IN − V_LED − I_avg·(R_S + r_L + R_SW))
+T_OFF = L·ΔI / (V_LED + V_D + I_avg·(R_S + r_L))
+        R_SW ≈ 0.6 Ω,  ΔI internally fixed at 0.3 × I_avg
+```
+
+With `R_S` = 0.15 Ω and `r_L` = 0.128 Ω, the 5-LED case drops from 342 kHz to
+**301 kHz** — the parasitic term eats into the already-small `V_IN − V_LED`
+headroom. The error is largest on long strings and negligible on short ones
+(3 LEDs: 542 → 531 kHz). It doesn't change the choice of 47 µH; it just means
+expect ~300 kHz on the bench, not 342 kHz.
+
 So: **47 µH, I_sat ≥ 1.2 A, I_rms ≥ 0.8 A, shielded.**
 
 Use a **shielded** part — unshielded drum cores radiate straight into the IR
@@ -259,6 +304,53 @@ Three things that matter more than the exact value:
 **Summary for one channel:** `4.7 µF / 50 V / X7R / 1206` at the pin +
 `100 µF / 35 V` electrolytic shared across the board.
 
+> The datasheet agrees on all three counts (p12): *"A minimum value of 4.7 µF is
+> acceptable if the DC input source is close to the device"*; X7R/X5R or better,
+> with **"capacitors with Y5V dielectric … should NOT be used"**; and its own
+> suggested part, `GRM42-2X7R475K-50`, is a 4.7 µF X7R rated **50 V**.
+
+### 4.3 C_LED — the shunt capacitor across the LEDs
+
+The datasheet documents this (p13, *Reducing output ripple*) and it is a real,
+safe technique — an earlier draft of this document wrongly warned against it:
+
+> *"Peak to peak ripple current in the LED(s) can be reduced, if required, by
+> shunting a capacitor C_LED across the LED(s) … A value of 1 µF will reduce the
+> supply ripple current by a factor three (approx.). **Note that the capacitor
+> will not affect operating frequency or efficiency**, but it will increase
+> start-up delay and **reduce the frequency of dimming**, by reducing the rate of
+> rise of LED voltage. By adding this capacitor the current waveform through the
+> LED(s) changes from a triangular ramp to a more sinusoidal version without
+> altering the mean current value."*
+
+**Why it doesn't destabilise anything.** `R_S` sits between VIN and CSN and
+senses the **inductor** current, and the inductor stays in series. `C_LED` is in
+parallel with the LEDs *only*, so it shunts the AC component away from the diodes
+while the inductor keeps its 200 mA triangular ramp. The hysteretic comparator
+sees exactly the waveform it saw before — hence "will not affect operating
+frequency or efficiency". The loop never knows the cap is there.
+
+**Why glim still leaves it off.** The clause that matters for us is *"reduce the
+frequency of dimming, by reducing the rate of rise of LED voltage."* glim's whole
+proposition is deep PWM dimming — a **2 µs minimum on-time**, which is a single
+switching cycle at ~300 kHz. A 1 µF cap across a 16 V string has to be charged
+and discharged before LED current can follow, so pulses that short get smeared
+away. You would be trading the bottom of the dimming range — the thing we moved
+to 16-bit PWM to win — against ripple you cannot see: ±15 % at **300 kHz** is
+invisible to the eye, harmless to the LEDs, and irrelevant to colour.
+
+**Fit C_LED when:**
+
+- you dim with a **DC voltage on DIM** instead of PWM, where the smearing costs
+  nothing;
+- the light will be filmed by a **high-speed or machine-vision camera** that can
+  resolve 300 kHz;
+- you want the EMI reduction, or the LED wiring is long enough to radiate.
+
+**Don't fit it when** — as here — PWM dimming depth is the point. If you want it
+anyway, start at 100 nF rather than 1 µF and measure the dimming floor on the
+bench: ripple reduction scales with capacitance, and so does the damage.
+
 ---
 
 ## 5. The DIM pin — and the pulldown that is not optional
@@ -296,6 +388,13 @@ R_pd = 10 kΩ:  V_DIM = 5 × 10/210 = 0.238 V  ✓ safely off
 5 V logic straight from the MCU is correct (2.5 V threshold, 6 V abs max). A
 ~100 Ω series resistor is optional for EMI/ESD; put the indicator LED tap on the
 **MCU side** of it.
+
+> **Put no capacitance on the DIM node.** The datasheet (p13, *Soft-start*) notes
+> that a capacitor from DIM to ground adds delay at roughly **0.8 ms per nF** — so
+> even 100 pF of well-meant "filtering" buys 80 µs, which is 40× our 2 µs minimum
+> pulse and would flatten the bottom of the dimming range. The pulldown is a
+> 10 kΩ *resistor* for exactly this reason. (If you ever want a soft-start ramp on
+> a non-dimming build, this is the knob to turn.)
 
 **PWM dimming keeps colour constant** — the LED runs at full amplitude or not at
 all — whereas analog current dimming shifts white LEDs warm. That's why glim
@@ -359,10 +458,20 @@ Ranked by how much it matters:
    copper for current, no more. Never run a signal trace under it.
 4. **Kelvin-sense R_S.** You're measuring 100 mV; take VIN and CSN from the pads
    themselves, keep both traces short, matched, and away from the SW node.
-   Trace resistance here is a direct current error.
-5. **Thermal pad to a ground pour** (ESOP8). θ_JA is 40 °C/W with the pad, 45 °C/W
+   Trace resistance here is a direct current error. The datasheet is specific
+   (p14): *"connect VIN directly to one end of RS and CSN directly to the
+   opposite end of RS with no other currents flowing in these tracks."*
+5. **Keep the Schottky's cathode current out of the R_S–VIN track.** Easy to miss,
+   and the datasheet calls it out (p14): if the diode's return current shares
+   copper with the sense path, its IR drop adds to the sensed voltage and *"may
+   give an apparent higher measure of current than is actual"*. The driver then
+   silently regulates **low**, and no amount of component-swapping will find it.
+6. **Star ground** (p14): bring the high-current returns, the input capacitor's
+   ground lead, and the output-filter ground to a single point rather than
+   daisy-chaining them.
+7. **Thermal pad to a ground pour** (ESOP8). θ_JA is 40 °C/W with the pad, 45 °C/W
    for SOT89-5 (p2).
-6. **Put the inductors as far from the IR receiver as the board allows**, and use
+8. **Put the inductors as far from the IR receiver as the board allows**, and use
    shielded parts. 200 kHz–1 MHz switching noise is the classic cause of an IR
    front-end that "randomly" triggers.
 
@@ -400,8 +509,8 @@ Values below are the 667 mA design point (`R_S` = 0.15 Ω, 20 V rail, ≤5 LEDs)
 - [ ] `D` = **SS34** (40 V Schottky)
 - [ ] `C_IN` = **4.7 µF / 50 V / X7R / 1206** *at the pin* — 50 V, not 25 V
 - [ ] One shared **100 µF / 35 V** electrolytic on the rail
-- [ ] **No capacitor across the LED string** (§1)
-- [ ] **10 kΩ DIM pulldown fitted**
+- [ ] No `C_LED` across the string — safe, but it costs PWM dimming depth (§4.3)
+- [ ] **10 kΩ DIM pulldown fitted** — and *no capacitance* on the DIM node (§5)
 - [ ] Kelvin sense traces on `R_S`
 - [ ] Supply can deliver **1.7 A at 20 V** for three channels (≥45 W charger)
 - [ ] MCU pin idles LOW in firmware before anything else runs
