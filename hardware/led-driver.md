@@ -82,8 +82,28 @@ from it; §2 has the table if you want a different current.
 
 Current path, switch **on**: `V_LED → R_S → LED → L → SW → GND`.
 Switch **off**: the inductor keeps the current going and it freewheels
-`L → node B → D → node A → LED → L`, so the LED stays lit — continuous
-conduction, which is why efficiency is high and ripple low.
+`L → SW node → D → V_LED node → R_S → LED → L`, so the LED stays lit —
+continuous conduction, which is why efficiency is high and ripple low.
+
+> **The diode's cathode goes to the V_LED rail — the *upstream* side of `R_S` —
+> not to the CSN node.** This is the one connection that is easy to get wrong and
+> impossible to spot by inspection. It matters because `R_S` has to carry the
+> freewheel current too: the datasheet's description of the loop is *"the current
+> flowing on the RS decreases at another rate. When (V_IN − V_CSN) < 85 mV, the
+> switch turns on again"* (p5). Return the diode to the CSN node instead and
+> `R_S` sees zero current during the off-time, `V_IN − V_CSN` collapses to 0 mV,
+> the comparator re-triggers immediately, and the converter never regulates.
+
+**Net list for one channel**, to check a schematic against:
+
+| Net | Connects |
+|---|---|
+| `VLED` | supply · `C_IN`+ · **D1 cathode** · `R_S` upstream · **VIN (5)** |
+| `LED1+` | `R_S` downstream · **CSN (4)** · LED string anode |
+| `LED1−` | LED string cathode · `L1` |
+| `SW node` | `L1` · **D1 anode** · **SW (1)** |
+| `DIM` | **DIM (3)** · 10 kΩ to GND · MCU pin |
+| `GND` | `C_IN`− · **GND (2)** · 10 kΩ |
 
 `R_S` sits **high-side, between VIN and CSN**. The IC senses the ~100 mV across
 it, turning the switch off at 115 mV and back on at 85 mV (p5). That ±15 %
@@ -449,11 +469,64 @@ and analog dimming costs you the constant colour temperature.
 
 ## 6. Layout
 
-Ranked by how much it matters:
+### Floorplan
 
-1. **C_IN → VIN/GND loop: minimal area.** This loop carries the switched current;
-   its inductance is what rings the SW node and radiates.
-2. **D close to the SW pin and to node A.** It's the other half of the fast loop.
+SOT89-5 pin geometry works in your favour: **VIN(5) and CSN(4) are adjacent on
+the top edge**, so `R_S` bridges them directly, and **SW(1)/GND(2) sit on the
+bottom edge**, so `C_IN` and `D1` close a tight loop down the left side.
+
+```
+        VLED copper (wide — from the shared 100 µF bulk)
+   ═════╤══════════════════╤═══════════════════╤═══════════════►  next channel
+        │                  │                   │
+    ┌───┴────┐        ┌────┴─────┐      ┌──────┴───────┐
+    │ C_IN   │        │ D1 SS34  │      │ R_S  0.15Ω   │   R_S straddles the
+    │4µ7 50V │        │ cathode↑ │      │    1206      │   VIN/CSN pads
+    └───┬────┘        └────┬─────┘      └──┬────────┬──┘
+        │                  │ anode         │        │
+       GND               ┌─┘            Kelvin   Kelvin
+        │                │                 │        │
+        │             ┌──┴─────────────────┴────────┴──┐
+        │             │ SW(1)        VIN(5)    CSN(4)  │
+        │             │                                │──►  LED1+  ─┐
+        │             │       PT4115  (SOT89-5)        │             │
+        │             │                                │        [LED string]
+        │             │ GND(2)                 DIM(3)  │             │
+        │             └───┬────────────────────────┬───┘             │
+        │                 │                        │                 │
+        └───────▓▓▓▓▓▓▓▓▓▓┴▓▓▓▓▓▓▓▓▓▓▓▓▓         [10k]               │
+                ▓    GND pour (star)   ▓           │                 │
+                ▓▓▓▓▓▓▓▓┬▓▓▓▓▓▓▓▓▓▓▓▓▓▓          GND                │
+                        │                          ▲                 │
+                   [L1 47µH]                   DIM from MCU          │
+                        │                                            │
+                        └──►  LED1-  ◄───────────────────────────────┘
+```
+
+### The hot loop — the only one with high di/dt
+
+```
+   C_IN(+) → VLED → D1 cathode → D1 anode → SW(1) → [internal FET] → GND(2) → C_IN(−)
+```
+
+At turn-off the current commutates from the internal FET into `D1`; that loop is
+where the fast edges live, and its enclosed area is what radiates and rings the
+SW node. **Keep `C_IN` and `D1` both hard against the left edge of the IC.**
+
+The useful corollary: **`R_S`, `L1` and the LED string are *not* in this loop.**
+They carry the continuous inductor current, so they can be placed for
+convenience — `R_S` for sensing accuracy, `L1` wherever it fits. Only `C_IN`,
+`D1`, and the IC need to be tight.
+
+### Rules, ranked by how much they matter:
+
+1. **C_IN and D1 hard against the IC** — they close the hot loop above. This is
+   the single highest-value placement decision on the channel.
+2. **Keep the LED wiring off the switching node.** Your schematic already gets
+   this right by putting `L1` between **LED1− and SW** rather than between CSN
+   and LED1+. Both wires out to the string then sit at quiet potentials, and the
+   fast-swinging SW node stays on the board. Swap L and the LED and the LED−
+   wire becomes a metre-long antenna driven at 300 kHz.
 3. **Keep the SW node copper small.** It's the dv/dt aggressor — just enough
    copper for current, no more. Never run a signal trace under it.
 4. **Kelvin-sense R_S.** You're measuring 100 mV; take VIN and CSN from the pads
