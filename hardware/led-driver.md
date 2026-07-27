@@ -321,8 +321,44 @@ Three things that matter more than the exact value:
    which can overshoot well past 20 V on hot-plug. With three channels sharing a
    rail this is doubly worth it.
 
-**Summary for one channel:** `4.7 µF / 50 V / X7R / 1206` at the pin +
-`100 µF / 35 V` electrolytic shared across the board.
+#### One big cap or two small ones?
+
+A common fork: **1 × 4.7 µF/1206/100 V** versus **2 × 4.7 µF/0805/50 V**. Run the
+numbers and the honest answer is that *capacitance is not the deciding factor* —
+both clear the requirement with room:
+
+| Option | C_eff @ 20 V | Ripple | |
+|---|---|---|---|
+| 1 × 4.7 µF 1206 **100 V** | ~4.0 µF | 78 mV | best retention |
+| 1 × 4.7 µF 1206 50 V | ~2.8 µF | 111 mV | the baseline |
+| **2 × 4.7 µF 0805 50 V** | ~3.4 µF | **92 mV** | ✅ |
+| *minimum that still works* | 1.4 µF | 223 mV | — |
+
+So decide on everything *except* µF, and **two 0805s win**:
+
+1. **You can split them.** Put one at VIN/GND and the second at D1's cathode.
+   That shrinks the hot loop (§6), and **loop area matters more here than
+   capacitance does** — you cannot buy back inductance with more farads.
+2. **~3× lower ESL.** Two 0805s in parallel land near 0.35 nH against ~1.0 nH for
+   a single 1206 — 0805 is both shorter individually and halved by paralleling.
+   ESL is what determines the spike at the switching edge.
+3. **Cheap and actually stocked.** 4.7 µF/100 V in *1206* is a specialty part —
+   at that voltage most vendors jump to 1210 or 1812. Check availability before
+   designing around it.
+
+The 1206/100 V part wins on one axis only: transient margin. But 50 V on a 20 V
+rail is already 2.5×, and if hot-plug ringing on the PD inlet worries you, the
+right fixes are the **TVS and the 100 µF bulk**, not an over-rated ceramic.
+
+> **Whichever you pick, check the dielectric.** High-CV parts in small cases are
+> often X5R or — much worse — Y5V, and the datasheet is explicit (p12):
+> *"Capacitors with Y5V dielectric are not suitable … and should NOT be used."*
+> X7R preferred, X5R acceptable. A bargain 4.7 µF/50 V/0805 with no dielectric
+> stated on the listing is exactly the part to be suspicious of.
+
+**Summary for one channel:** `2 × 4.7 µF / 50 V / X7R / 0805` — one at the VIN
+pin, one at the diode — or a single `4.7 µF / 50 V / X7R / 1206` if you'd rather
+place one part. Plus the shared `100 µF / 35 V` electrolytic.
 
 > The datasheet agrees on all three counts (p12): *"A minimum value of 4.7 µF is
 > acceptable if the DC input source is close to the device"*; X7R/X5R or better,
@@ -580,7 +616,7 @@ Values below are the 667 mA design point (`R_S` = 0.15 Ω, 20 V rail, ≤5 LEDs)
 - [ ] `R_S` = **0.15 Ω, 1 %, 1206** (or 2 × 0.3 Ω 0805 in parallel)
 - [ ] `L` = **47 µH, I_sat ≥ 1.2 A, I_rms ≥ 0.8 A, shielded**, DCR < 0.3 Ω
 - [ ] `D` = **SS34** (40 V Schottky)
-- [ ] `C_IN` = **4.7 µF / 50 V / X7R / 1206** *at the pin* — 50 V, not 25 V
+- [ ] `C_IN` = **2 × 4.7 µF / 50 V / X7R / 0805** (or 1 × 1206) *at the pin* — X7R/X5R, never Y5V
 - [ ] One shared **100 µF / 35 V** electrolytic on the rail
 - [ ] No `C_LED` across the string — safe, but it costs PWM dimming depth (§4.3)
 - [ ] **10 kΩ DIM pulldown fitted** — and *no capacitance* on the DIM node (§5)
@@ -698,7 +734,7 @@ Everything for a discrete channel, from hobby stores rather than distributors:
 | **Inductor 47 µH shielded, I_sat ≥ 1.2 A** | Robu, Evelta, Quartz Components — check the *saturation* spec, not just "1 A" |
 | SS34 Schottky (40 V) | any of them |
 | **0.15 Ω 1 % 1206** sense resistor | any of them (or 2 × 0.3 Ω 0805 in parallel) |
-| **4.7 µF / 50 V X7R 1206** | any of them — insist on **50 V** |
+| **4.7 µF / 50 V X7R** — 2 × 0805 or 1 × 1206 | any of them — insist on **50 V** and X7R/X5R |
 | 10 kΩ, 100 nF, 100 µF / 35 V electrolytic | any of them |
 | XL6019 boost module | [Robu](https://robu.in/product/xl6019-dc-dc-5a-adjustable-boost-power-supply-module/), Zbotic, Quartz Components |
 | AO3400 / IRLZ44N | Robu, Evelta |

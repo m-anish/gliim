@@ -286,7 +286,7 @@ anything but UPDI.
 | 3 | Inductor 47 µH, **I_sat ≥ 1.2 A**, I_rms ≥ 0.8 A | 3 | shielded; scale with current per driver doc |
 | 4 | Schottky SS34 (40 V/3 A) | 3 | |
 | 5 | Sense resistor, 1 %, **1206** | 3 | **0.15 Ω ⇒ 667 mA** (see table in driver doc) |
-| 6 | **4.7 µF / 50 V X7R 1206** | 3 | one per driver, at V_IN — 50 V matters, see driver doc |
+| 6 | **4.7 µF / 50 V X7R** ×2 per channel (0805) | 6 | one at V_IN, one at the diode — see driver doc |
 | 7 | 100 µF / 35 V electrolytic | 1 | bulk on the LED rail |
 | 8 | 10 kΩ resistor | 3 | **DIM pulldowns — mandatory** |
 | 9 | USB-C PD decoy board | 1 | jumper to 20 V |
