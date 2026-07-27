@@ -6,8 +6,10 @@ that map), the power tree, and how to program the chip.
 
 ## Pin map
 
-ATtiny814, 14-pin SOIC. All of glim's I/O sits on PORTA; PORTB is left entirely
-free for future expansion.
+ATtiny814, 14-pin SOIC — this is the **rev1** board. rev2 (ATtiny3216) uses the
+same LED and joystick pins and moves the peripherals to PORTC; see
+[`../hardware/rev2/README.md`](../hardware/rev2/README.md). All twelve I/O are
+now spoken for.
 
 | Signal | Pin | On-chip function |
 |--------|-----|------------------|
@@ -51,7 +53,7 @@ its 8-bit resolution costs real dimming depth (next section). So the LEDs live o
 is the joystick. So the hardware UART is gone; `GLIM_DEBUG` builds bit-bang over
 SoftwareSerial on **PA4** instead, and IR is auto-disabled in those builds
 (SoftwareSerial's interrupt dispatcher claims the PORT vectors the IR decoder
-needs). This is a genuine 14-pin squeeze — rev2's ATtiny1616 has room for both.
+needs). This is a genuine 14-pin squeeze — rev2's ATtiny3216 has PORTC spare.
 
 ### PWM engine
 
@@ -66,35 +68,6 @@ needs). This is a genuine 14-pin squeeze — rev2's ATtiny1616 has room for both
 
 Single-slope sets the output at TOP and clears it on compare match (§20.3.3.4),
 so duty = `CMP/(PER+1)` and **higher = brighter**, same polarity as before.
-
-At `F_CPU = 20 MHz`, `DIV256` gives ~305 Hz.
-
-### Why that frequency, and how low the dimming goes
-
-The lowest honest brightness is set by the **driver**, not the timer. The PT4115
-is a hysteretic buck: it needs enough on-time to actually build inductor current
-to regulation. Too short a pulse and output stops being proportional or even
-monotonic. So:
-
-    minimum duty ≈ (PT4115 minimum on-time) × (PWM frequency)
-
-and, with 8-bit resolution:
-
-    (on-time per count) × (PWM frequency) = 1/256   — always
-
-F_CPU cancels out of both. It does **not** move that curve; it only changes which
-discrete points the prescaler can land on. Nor does PWM bit-depth help — a 16-bit
-timer would offer a 62 ns pulse the driver can't act on. The only real levers are
-lowering the PWM frequency or reducing the driver's minimum on-time.
-
-Useful operating points (8-bit, `HPER = 255`):
-
-| Config | PWM freq | on-time per count |
-|---|---|---|
-| 16 MHz, DIV64 | 976 Hz | 4.0 µs |
-| 16 MHz, DIV256 | 244 Hz | 16.0 µs |
-| **20 MHz, DIV256** | **305 Hz** | **12.8 µs** ← current |
-| 20 MHz, DIV64 | 1221 Hz | 3.2 µs |
 
 At `F_CPU = 20 MHz` with `PER = 65535`, DIV1 gives **305 Hz** — and that is the
 *ceiling*, because full 16-bit resolution consumes the whole period.
@@ -136,11 +109,6 @@ rides the higher frequency, keeping the bright one flicker-free.
 
 Below 0.015 % you need analog current reduction (hybrid dimming) or a larger
 sense resistor; no amount of PWM gets there.
-
-To go meaningfully lower you'd need hybrid dimming — drive the PT4115's analog
-CTRL pin to scale full-scale current down (TCA0's unused WO0/WO1/WO2 on
-PB0/PB1/PB2, RC-filtered) with PWM on top, for ~1280:1 — or simply reduce the
-full-scale LED current with a larger sense resistor.
 
 ## Power tree
 

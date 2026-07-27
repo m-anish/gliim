@@ -74,12 +74,18 @@ Everything goes through `utils/flash.sh` — it auto-detects the USB-serial
 programmer (`utils/find-port.sh`) so no port is hardcoded in `platformio.ini`.
 
 ```bash
-utils/flash.sh                    # build + upload
+utils/flash.sh                    # build + upload   (rev1 = ATtiny814, default)
+utils/flash.sh --rev2             # target rev2      (ATtiny3216)
 utils/flash.sh --build            # compile only
 utils/flash.sh --fuses            # once per fresh chip
 utils/flash.sh --debug --monitor  # GLIM_DEBUG=1 build, upload, then console
 utils/flash.sh --port /dev/... --slow   # override port / drop to 115200
 ```
+
+**One source, two boards.** `GLIM_BOARD` in `config.h` (1 = rev1/ATtiny814,
+2 = rev2/ATtiny3216) selects the pin map; `--rev2` sets it via `-DGLIM_BOARD=2`.
+Both parts put the LEDs on PB0/PB1/PB2 — only the peripherals move, onto PORTC
+where rev2 has room. Keep new pins inside that `#if`, not hardcoded.
 
 `--debug` works by passing `-DGLIM_DEBUG=1`, which is why `GLIM_DEBUG` in
 `config.h` is wrapped in `#ifndef` — keep that guard if you add build-time

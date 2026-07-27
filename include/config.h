@@ -1,51 +1,101 @@
 // config.h — glim hardware map and behaviour tunables.
 //
-// Everything you'd want to adjust for a given build lives here. The pin
-// choices are not arbitrary: on the ATtiny814 only PA3/PA4/PA5 can emit a
-// TCA0 waveform (PWM), and only PA1/PA2 among the free pins can read the ADC.
-// See docs/hardware.md for the datasheet reasoning.
+// Everything you'd want to adjust for a given build lives here, for both board
+// revisions. The pin choices are not arbitrary — they are forced by which pins
+// can emit a TCA0 waveform and which can reach the ADC. See docs/hardware.md
+// for the datasheet reasoning before moving any of them.
 
 #pragma once
 #include <Arduino.h>
 
 // ---------------------------------------------------------------------------
-// Pin map (ATtiny814, 14-pin SOIC)
+// Board select
 // ---------------------------------------------------------------------------
+//
+//   1 = rev1 — ATtiny814, 14-pin SOIC, hand-soldered board
+//   2 = rev2 — ATtiny3216, 20-pin SOIC, PCB (see hardware/rev2/)
+//
+// Set by the build environment (`-DGLIM_BOARD=2`), so `pio run -e rev2` picks
+// rev2 without editing this file. Everything below the pin map is shared.
 
-// LED channels → PT4115 PWM/DIM inputs. These MUST stay on PB0/PB1/PB2: they
-// are TCA0's WO0/WO1/WO2, the only outputs that exist in *normal* (16-bit) mode.
-// Moving them back to PA3/PA4/PA5 would force split mode and cost 8 bits of
-// dimming resolution — see docs/hardware.md before touching this.
+#ifndef GLIM_BOARD
+#define GLIM_BOARD 1
+#endif
+
+// ---------------------------------------------------------------------------
+// Pin map
+// ---------------------------------------------------------------------------
+//
+// Common to both boards: the LED channels sit on **PB0/PB1/PB2** because those
+// are TCA0's WO0/WO1/WO2 — the only waveform outputs that exist in *normal*
+// (16-bit) mode. Split mode would offer six outputs but only 8 bits, which is
+// 6.4× coarser than the PT4115 can resolve. See docs/hardware.md.
+//
+// Also common: PA1/PA2 are the ADC pins (AIN1/AIN2) and cannot do PWM, so the
+// joystick lives there on both boards.
+
+#if GLIM_BOARD == 1
+// ── rev1: ATtiny814, 14-pin ────────────────────────────────────────────────
 #define LED1_PIN   PIN_PB0   // TCA0 WO0 / CMP0
 #define LED2_PIN   PIN_PB1   // TCA0 WO1 / CMP1
 #define LED3_PIN   PIN_PB2   // TCA0 WO2 / CMP2
 
-// IR receiver (TSOP38238) demodulated output, active-low, idles high.
-//
-// On PB3 rather than a spare PORTA pin so its edge interrupt lands on
-// PORTB_PORT_vect, leaving PORTA_PORT_vect free for SoftwareSerial's receiver in
-// debug builds — two ISRs can't share a vector. PB3 is interrupt-capable
-// (synchronous only, which is fine: glim never sleeps while decoding).
-//
-// The four defines must agree. megaTinyCore's Arduino pin numbers are NOT port
-// bit positions (PIN_PA0 is 11, PIN_PA3 is 10), so none of these can be derived
-// from IR_PIN — spell them out.
+// IR on PB3 so its edge interrupt lands on PORTB_PORT_vect. PB3 is
+// interrupt-capable (synchronous only — fine, glim never sleeps while decoding).
 #define IR_PIN       PIN_PB3
 #define IR_PORT      PORTB
-#define IR_PIN_bm    PIN3_bm         // PB3's bit within PORTB
+#define IR_PIN_bm    PIN3_bm
 #define IR_PINCTRL   PORTB.PIN3CTRL
 #define IR_PORT_vect PORTB_PORT_vect
 
-// Joystick. X/Y must be ADC-capable pins; PA1=AIN1, PA2=AIN2. Which axis lands
-// on which pin is down to how the module is wired — swap these two if left/right
-// and up/down come out transposed.
-#define JOY_X_PIN  PIN_PA2   // ADC AIN2  (left/right → channel select)
-#define JOY_Y_PIN  PIN_PA1   // ADC AIN1  (up/down    → brightness)
-#define JOY_SW_PIN PIN_PA7   // digital, active-low with internal pull-up
+// As built, the joystick's X and Y landed transposed vs. the schematic — swap
+// these two if left/right and up/down come out the wrong way round.
+#define JOY_X_PIN  PIN_PA2   // AIN2  (left/right → channel select)
+#define JOY_Y_PIN  PIN_PA1   // AIN1  (up/down    → brightness)
+#define JOY_SW_PIN PIN_PA7
 
-// WS2812 status pixel — plain GPIO, any free pin. (PB0/PB1/PB2/PB3 remain free;
-// the IR receiver goes on PB0.)
-#define STATUS_PIXEL_PIN PIN_PA6
+#define STATUS_PIXEL_PIN PIN_PA6   // WS2812 — plain GPIO
+
+// Debug serial: PB2 is USART0's TXD but it's LED ch3 here, and USART0's only
+// alternate (PA1) is the joystick — so there is no hardware UART on this board.
+#define DEBUG_TX_PIN PIN_PA4
+#define DEBUG_RX_PIN PIN_PA5
+
+#elif GLIM_BOARD == 2
+// ── rev2: ATtiny3216, 20-pin ───────────────────────────────────────────────
+// Same LED pins as rev1; PORTC is the new space, and it takes the peripherals
+// that were squeezed onto PORTA before.
+#define LED1_PIN   PIN_PB0   // TCA0 WO0 / CMP0
+#define LED2_PIN   PIN_PB1   // TCA0 WO1 / CMP1
+#define LED3_PIN   PIN_PB2   // TCA0 WO2 / CMP2
+
+// IR moves to PC0 — PORTC exists on the 20-pin part, so PORTA and PORTB stay
+// clear for the input and the LEDs.
+#define IR_PIN       PIN_PC0
+#define IR_PORT      PORTC
+#define IR_PIN_bm    PIN0_bm
+#define IR_PINCTRL   PORTC.PIN0CTRL
+#define IR_PORT_vect PORTC_PORT_vect
+
+// New board, so the schematic defines the axes rather than the other way round.
+#define JOY_X_PIN  PIN_PA1   // AIN1  (left/right → channel select, or ladder node)
+#define JOY_Y_PIN  PIN_PA2   // AIN2  (up/down    → brightness; unused with the ladder)
+#define JOY_SW_PIN PIN_PA7
+
+#define STATUS_PIXEL_PIN PIN_PC1   // WS2812
+
+// Still no hardware UART: PB2 is USART0 TXD (LED ch3) and its alternate is PA1
+// (the input). Debug bit-bangs on PORTC, which rev1 didn't have spare.
+#define DEBUG_TX_PIN PIN_PC2
+#define DEBUG_RX_PIN PIN_PC3
+
+// PA3/PA4/PA5 are TCA0 WO3/WO4/WO5 — LED channels 4-6 if you ever populate the
+// expansion drivers, but only in split mode, which costs the 16-bit resolution.
+// PA6 (DAC), PB3, PB4, PB5 are free.
+
+#else
+#error "GLIM_BOARD must be 1 (rev1 / ATtiny814) or 2 (rev2 / ATtiny3216)"
+#endif
 
 #define NUM_CHANNELS 3
 
@@ -253,13 +303,9 @@
 #define GLIM_DEBUG 0
 #endif
 
-// Debug output can't use the hardware USART any more: USART0's TXD is PB2, which
-// is now LED channel 3, and its only alternate (PA1) is the joystick. So debug
-// builds bit-bang over SoftwareSerial on the pins freed by moving the LEDs off
-// PORTA. Wire the USB-serial adapter's **RX to PA4** — note this is a different
-// pin from the UPDI node.
-#define DEBUG_TX_PIN PIN_PA4
-#define DEBUG_RX_PIN PIN_PA5   // unused in practice; SoftwareSerial wants a pin
+// Debug output can't use the hardware USART on either board (see the pin map):
+// it bit-bangs over SoftwareSerial on DEBUG_TX_PIN. Wire the USB-serial
+// adapter's RX to that pin — a different pin from the UPDI node.
 
 // SoftwareSerial routes through the core's attachInterrupt dispatcher, which
 // defines every PORT interrupt vector — so it cannot coexist with the IR

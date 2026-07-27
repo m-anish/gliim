@@ -74,7 +74,8 @@ built with PlatformIO and flashed over UPDI with a serial adapter.
 `utils/flash.sh` finds the adapter for you — no port to hardcode:
 
 ```bash
-utils/flash.sh                    # build + flash
+utils/flash.sh                    # build + flash  (rev1, ATtiny814)
+utils/flash.sh --rev2             # ...or the rev2 board (ATtiny3216)
 utils/flash.sh --fuses            # write clock/BOD/EESAVE fuses (once, fresh chip)
 utils/flash.sh --debug --monitor  # flash a telemetry build, then watch it
 utils/flash.sh --list             # which serial ports can I see?
@@ -112,7 +113,7 @@ Firmware v1: barebones but complete — 3 channels, full joystick control,
 persistence. Hardware is a hand-soldered board. The whole design is written to
 survive a move: pins and behaviour are all in `config.h`.
 
-**rev2 is specified** — ATtiny1616, 16-bit PWM (~6× deeper dimming), USB-C PD
+**rev2 is specified** — ATtiny3216, 16-bit PWM (~6× deeper dimming), USB-C PD
 power, on-board IR remote and status pixel:
 [`hardware/rev2/`](hardware/rev2/README.md).
 

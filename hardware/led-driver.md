@@ -648,7 +648,7 @@ resistor value and needs no new topology; boosting costs a converter stage,
 ~10 % efficiency, extra noise near the IR receiver, and board area. **Try the
 resistor first.**
 
-Adding channels is the other cheap answer — the ATtiny1616 in rev2 has six PWM
+Adding channels is the other cheap answer — the ATtiny3216 in rev2 has six PWM
 outputs, and the joystick UI already wraps through however many exist.
 
 ### 9.2 If you do: boost the rail, then buck per channel

@@ -20,7 +20,7 @@ Companion documents:
 
 | # | Change | Why |
 |---|---|---|
-| 1 | **ATtiny814 → ATtiny1616** | rev1 is at 58% of 8 KB before IR decoding and learn-mode exist. 16 KB / 2 KB and 18 I/O ends the pin and flash squeeze. |
+| 1 | **ATtiny814 → ATtiny3216** | rev1 is at 74 % of 8 KB with IR in. 32 KB / 2 KB and 18 I/O end the pin and flash squeeze; same `txy6` pinout as the 1616, and cheaper locally. |
 | 2 | **LED PWM moves to PB0/PB1/PB2, 16-bit** | The big one. See §2 — it's worth ~6× more dimming depth, for free. |
 | 3 | **10 kΩ pulldown on every DIM line** | The PT4115 pulls DIM up internally: **a floating DIM pin means full brightness.** rev1 flashes at full while the MCU boots. |
 | 4 | **USB-C PD inlet** | A decoy board gives 9/12/15/20 V from any laptop charger. No barrel jack, no wall-wart hunt. |
@@ -33,9 +33,11 @@ Companion documents:
 
 ## 2. The 16-bit PWM decision (read this before changing pins)
 
-rev1 drives the LEDs from **TCA0 in split mode**, which is 8-bit — the dimmest
-step is 1/256 = **0.39 %** duty. We assumed that was fine because the driver
-couldn't reproduce shorter pulses anyway. **That assumption was wrong.**
+rev1 originally drove the LEDs from **TCA0 in split mode**, which is 8-bit — the
+dimmest step is 1/256 = **0.39 %** duty. We assumed that was fine because the
+driver couldn't reproduce shorter pulses anyway. **That assumption was wrong**,
+and finding out is what set this whole decision. rev1 has since been rewired to
+16-bit as well, so both boards now run the same scheme.
 
 The PT4115 datasheet (p3, `D_PWM_LF` / `D_PWM_HF`) gives the usable duty range at
 two frequencies, and they agree on the same underlying number:
@@ -48,14 +50,16 @@ two frequencies, and they agree on the same underlying number:
 The driver's floor is a **~2 µs on-time** — hence its advertised 5000:1 at 100 Hz
 and 25:1 at 20 kHz. Compare that against what 8-bit resolution actually delivers:
 
-| PWM config | Driver could do | 8-bit delivers | Wasted |
+| PWM config | Driver could do | 8-bit delivered | Wasted |
 |---|---|---|---|
-| 305 Hz (rev1 today) | 0.061 % (1638:1) | 0.39 % (256:1) | **6.4×** |
-| 76 Hz (rev1 low tier) | 0.015 % (6580:1) | 0.39 % (256:1) | **25×** |
+| 305 Hz | 0.061 % (1638:1) | 0.39 % (256:1) | **6.4×** |
+| 76 Hz | 0.015 % (6580:1) | 0.39 % (256:1) | **25×** |
 
 So resolution, not the driver, is the binding constraint — and more PWM bits
-genuinely help. On the ATtiny1616, **TCA0 in normal (16-bit) mode** drives
+genuinely help. On the ATtiny3216, **TCA0 in normal (16-bit) mode** drives
 `WO0/WO1/WO2` → **PB0/PB1/PB2**: exactly three channels, exactly what we need.
+The ATtiny814 has the same three pins, so rev1 was rewired to match and **one
+firmware source now builds for both boards** — see §8.
 
 Recommended operating point — same frequency as today, 6.4× deeper:
 
@@ -78,9 +82,9 @@ drivers you populate:
 
 For a home dimmer, dimming *quality* beats channel count. Ship normal mode.
 
-> Consequence for firmware: temporal dithering becomes pointless (16-bit far
-> exceeds what dithering bought at 8-bit) and should be compiled out. Gamma
-> correction must be computed in 16-bit space.
+> Consequence for firmware, now implemented: temporal dithering was deleted
+> (16-bit far exceeds what dithering bought at 8-bit) and gamma is computed in
+> 16-bit space.
 
 ---
 
@@ -106,7 +110,7 @@ For a home dimmer, dimming *quality* beats channel count. Ship normal mode.
        │       └───────────┴────────────┘             │
        │                   │                          │
        │            ┌──────┴───────┐                  │
-       └────────────┤  ATtiny1616  ├──────────────────┘
+       └────────────┤  ATtiny3216  ├──────────────────┘
                     └──┬───┬───┬───┘
               PA1/PA7 ─┘   │   └─ PC1 → WS2812 status pixel
               input        └───── PC0 ← TSOP38238 IR receiver
@@ -118,23 +122,33 @@ than from a second PD board.
 
 ---
 
-## 4. MCU: ATtiny1616
+## 4. MCU: ATtiny3216
 
-**ATtiny1616, 20-pin SOIC** (`ATTINY1616-SNR`). Pin-compatible upgrade path:
-**ATtiny3216** (32 KB) if firmware outgrows 16 KB.
+**ATtiny3216, 20-pin SOIC** (`ATTINY3216-SNR`) — chosen over the ATtiny1616
+simply because it is **cheaper locally right now**. It is the same die family in
+the same package: PlatformIO reports both as variant `txy6`, so the **pinout is
+identical** and picking one over the other is purely a flash-size decision.
 
-| | ATtiny814 (rev1) | **ATtiny1616 (rev2)** |
-|---|---|---|
-| Flash / SRAM | 8 KB / 512 B | **16 KB / 2 KB** |
-| I/O pins | 12 | **18** |
-| TCA0 outputs | WO3–WO5 only (PA3–5) | **WO0–WO5** (PB0–2 + PA3–5) |
-| 16-bit PWM pins | none broken out | **PB0/PB1/PB2** |
-| Package | SOIC-14 | SOIC-20 (hand-solderable) |
+| | ATtiny814 (rev1) | ATtiny1616 | **ATtiny3216 (rev2)** |
+|---|---|---|---|
+| Flash | 8 KB | 16 KB | **32 KB** |
+| SRAM | 512 B | 2 KB | **2 KB** |
+| EEPROM | 128 B | 256 B | **256 B** |
+| I/O pins | 12 | 18 | **18** |
+| Variant | txy4 | txy6 | **txy6** (same pinout as 1616) |
+| Package | SOIC-14 | SOIC-20 | **SOIC-20** (hand-solderable) |
+
+Firmware today is **6.4 KB — 19.6 % of the 3216's flash**, against 74 % of the
+814's. That headroom is the point: IR learn mode, the ladder decoder, scenes and
+whatever else can land without ever re-running this arithmetic.
+
+The **256 B EEPROM** (double rev1's 128 B) matters too — the persist struct with
+six learned IR codes is ~35 B, so there is room for several stored scenes.
 
 Choose SOIC-20 over VQFN-20 unless you're reflowing — it hand-solders fine.
 
-> Not the 2-series (ATtiny1626 etc.): its 12-bit ADC is nice but the 1-series is
-> what rev1 firmware and megaTinyCore are proven on, and the ADC is not our
+> Not the 2-series (ATtiny1626 etc.): its 12-bit ADC is nice, but the 1-series is
+> what the firmware and megaTinyCore are proven on here, and the ADC is not our
 > bottleneck.
 
 ### Pin map
@@ -157,13 +171,20 @@ Choose SOIC-20 over VQFN-20 unless you're reflowing — it hand-solders fine.
 | PB5 | *free* | AIN8 |
 | PC0 | **IR receiver OUT** | TSOP38238 |
 | PC1 | **WS2812 data** | status pixel |
-| PC2 | *free* | debug serial TX (SoftwareSerial) |
-| PC3 | *free* | |
+| PC2 | Debug serial TX | SoftwareSerial, debug builds only |
+| PC3 | *free* | (debug RX placeholder) |
 
-**Known conflict:** PB2 is both LED ch3 and the default USART0 TX. Debug
-telemetry therefore uses **SoftwareSerial on PC2** (megaTinyCore ships it).
-Moving USART0 via PORTMUX lands on PA1/PA2, which the input needs — so
-SoftwareSerial is the clean answer, and it costs nothing in the shipping config.
+**Known conflict:** PB2 is both LED ch3 and the default USART0 TXD, and USART0's
+only PORTMUX alternate is PA1/PA2 — which the input needs. So there is **no
+hardware UART on this board either**; debug telemetry bit-bangs over
+**SoftwareSerial on PC2**, which PORTC makes free (rev1 had to borrow PA4).
+
+That library routes through the core's `attachInterrupt` dispatcher, which
+defines every PORT vector, so it cannot coexist with the IR decoder's raw ISR —
+`config.h` forces `GLIM_IR` off in debug builds, exactly as on rev1. With 32 KB
+of flash there is now ample room to switch the decoder to `attachInterrupt()` if
+you ever want IR and telemetry live at the same time; NEC's 1.125 ms bit periods
+are utterly indifferent to a few µs of dispatcher latency.
 
 **PORTC has no ADC** on this part (ADC reaches PA0–PA7, PB0, PB1, PB4, PB5 only).
 Keep analog inputs on PORTA.
@@ -281,7 +302,7 @@ anything but UPDI.
 
 | # | Part | Qty | Notes |
 |---|---|---|---|
-| 1 | ATtiny1616-SNR (SOIC-20) | 1 | or ATtiny3216 |
+| 1 | **ATtiny3216-SNR** (SOIC-20) | 1 | ATtiny1616 is pin-identical if cheaper on the day |
 | 2 | PT4115 (SOT89-5 or ESOP8) | 3 | ESOP8 has a thermal pad — prefer it >500 mA |
 | 3 | Inductor 47 µH, **I_sat ≥ 1.2 A**, I_rms ≥ 0.8 A | 3 | shielded; scale with current per driver doc |
 | 4 | Schottky SS34 (40 V/3 A) | 3 | |
@@ -305,23 +326,41 @@ Electronics ≈ **₹900–1200 / $11–15** per unit, excluding LEDs and charge
 
 ---
 
-## 8. Firmware work this implies
+## 8. Firmware
 
-Roughly in order:
+**One source builds both boards.** `include/config.h` carries a `GLIM_BOARD`
+switch (1 = rev1/ATtiny814, 2 = rev2/ATtiny3216) selecting the pin map; every
+tunable below it is shared. The build environment sets it, so nothing needs
+editing to change target:
 
-1. **TCA0 normal-mode 16-bit PWM** on PB0/PB1/PB2 (replaces split-mode
-   `HCMP0/1/2` writes). Gamma in 16-bit; delete the dither ISR.
-2. **Retune** `PWM_MIN_DUTY` to the driver's real 2 µs floor (~40 counts at
-   305 Hz) instead of the 8-bit fudge.
-3. **Pin/config changes** for the ATtiny1616 (`config.h` only, by design).
-4. **IR NEC decode + learn mode** — TCB0 input capture, codes in EEPROM.
-5. **Ladder input decode** behind a `GLIM_INPUT_LADDER` flag, with
-   hold-to-accelerate ramping.
-6. Keep: soft transitions, boot fade, watchdog, EEPROM versioning, factory reset,
-   variable PWM frequency (now with more room, since 16-bit tolerates a lower
-   frequency without losing steps).
+```bash
+utils/flash.sh                    # rev1 (ATtiny814) — the default
+utils/flash.sh --rev2             # rev2 (ATtiny3216)
+utils/flash.sh --rev2 --fuses     # fuses for a fresh 3216
+utils/flash.sh --rev2 --debug     # telemetry build (IR auto-disabled)
+```
 
----
+Current footprint: **6 430 B of 32 768 (19.6 %)**, 137 B of 2 048 RAM (6.7 %).
+
+### Already done (shared with rev1)
+
+- TCA0 normal-mode **16-bit PWM** on PB0/PB1/PB2, duty via the buffered
+  `CMPnBUF` registers; dithering deleted; gamma in 16-bit.
+- Dimming floor expressed as a **time** (`DRIVER_MIN_ON_NS`, the driver's ~2 µs)
+  and converted to counts per prescaler, so the brightness-scheduled frequency
+  tiers stay correct.
+- **IR NEC decode + learn mode** — falling-edge ISR, six learnable actions,
+  codes in EEPROM.
+- WS2812 status pixel, soft transitions, fixed-duration boot fade, watchdog,
+  EEPROM struct versioning, factory-reset gesture.
+
+### Still to do for rev2
+
+1. **Ladder input decode** behind a `GLIM_INPUT_LADDER` flag, with
+   hold-to-accelerate ramping ([`input.md`](input.md) §2.5 has the decoder).
+2. **Retune** `JOY_*` deadzones/thresholds for whichever input gets populated.
+3. *Optional:* move the IR decoder to `attachInterrupt()` so IR and debug
+   telemetry can run together — see §4. Purely a convenience; 32 KB affords it.
 
 ## 9. Open decisions
 

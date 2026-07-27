@@ -13,9 +13,9 @@ app and no network. Enhancements are welcome as long as they respect that.
   belongs in [lokki](https://github.com/m-anish/lokki), not here. That boundary
   is what keeps glim on a $0.60 MCU.
 
-Everything below is sized to an ATtiny814-class part. We're using **27% of flash
-and 10% of RAM**, so software headroom is not the constraint — pins and restraint
-are.
+Everything below is sized to an ATtiny814-class part. rev1 is now at **74 % of
+flash and 27 % of RAM**, and every pin is allocated — so on rev1 both headroom
+*and* pins are the constraint. rev2's ATtiny3216 resets that (19.6 % of 32 KB).
 
 ## Resource budget (what's actually free)
 
@@ -36,7 +36,7 @@ Current pin usage and what's left to build on:
 (TCD0 is millis; TCA0 is the PWM; USART0 is unusable — its TXD is PB2.)
 
 The pin budget is now essentially full — which is the honest signal that further
-growth belongs on rev2's ATtiny1616 rather than here.
+growth belongs on rev2's ATtiny3216 rather than here.
 
 **The channels/resolution trade:** TCA0 split mode has six outputs (WO0–WO2 →
 PB0/1/2, WO3–WO5 → PA3/4/5) but is 8-bit; normal mode has three and is 16-bit.
@@ -70,7 +70,7 @@ Small parts, one or two pins each. Pick à la carte.
 |------|------|-------|--------|
 | **3 channel indicator LEDs** | LED + 1 kΩ per channel, **0 pins** | Live brightness meter at the joystick | Piggyback on PB0/PB1/PB2. Brightness mirrors each channel's level for free. Shows *level*, not *selection*. |
 | **1 status LED / pixel** | 1 pin (PA6) | Persistent "which channel is selected" | A single bicolor LED, or one WS2812 (megaTinyCore has `tinyNeoPixel`) → selected channel = color, plus all-off/booting states. This is the missing half of the indicator story. |
-| **IR receiver** | 3-pin TSOP (e.g. 38 kHz), 1 pin | **Couch control** — huge for a home | Decode NEC with TCB0 input-capture. Map remote keys to brightness / channel / on-off / scenes alongside the joystick. Probably the single most useful add for the actual use case. |
+| ✅ **IR receiver** | 3-pin TSOP (e.g. 38 kHz), 1 pin | **Couch control** — huge for a home | *Done:* falling-edge ISR decoding NEC on PB3, plus a learn mode binding six actions to any remote. |
 | **Ambient light sensor** | LDR/phototransistor + resistor, 1 ADC pin (PA6) | Auto-cap brightness in daylight | Optional, behind a config flag — glim stays manual-first. (This is a lokki idea scaled down.) |
 | **PIR motion sensor** | 3-pin PIR module, 1 pin | Auto-on/off for halls, utility spaces | Turns glim "automatic"; keep it opt-in so it never surprises someone who just wants a manual dimmer. |
 
@@ -85,7 +85,7 @@ Small parts, one or two pins each. Pick à la carte.
 [LED driver circuit](hardware/led-driver.md), and
 [input circuits](hardware/rev2/input.md).
 
-Headline: ATtiny1616, **16-bit PWM** (the PT4115's real floor is a 2 µs on-time,
+Headline: ATtiny3216, **16-bit PWM** (the PT4115's real floor is a 2 µs on-time,
 so 8-bit was wasting ~6× of dimming depth), USB-C PD power, on-board IR and
 status pixel, and 10 kΩ DIM pulldowns so it stops flashing at power-up.
 
@@ -97,10 +97,11 @@ robustness a wall-installed device wants.
 - **Consolidate** the indicator LEDs, status pixel, and IR receiver onto the PCB.
 - **Input protection:** reverse-polarity (P-FET or series diode), input fuse, a
   TVS on the DC rail. Screw terminals for the 6–30 V in and each LED string.
-- **Up to 6 channels on the same ATtiny814** using the full TCA0 split (adds
-  PB0/PB1/PB2 as WO0/WO1/WO2). The joystick already wraps through channels, so
-  the UX scales for free. Trade-off: you spend the I²C/UART pins — decide per
-  build whether you'd rather have 6 channels or a spare bus.
+- **Up to 6 channels** using the full TCA0 split (adds PA3/PA4/PA5 as WO3–WO5
+  alongside the existing PB0–PB2). The joystick already wraps through channels,
+  so the UX scales for free. Trade-off: split mode is 8-bit, so you'd give up
+  the 16-bit dimming depth — for a dimmer that's the wrong trade, which is why
+  rev2 ships 3 × 16-bit.
 - **Cleaner programming header** for UPDI (the 1 kΩ serialUPDI node broken out).
 - **Enclosure + a joystick with a decent detent** — the feel of the stick is the
   whole product; a mushy module undoes good firmware.
@@ -110,9 +111,9 @@ robustness a wall-installed device wants.
 Where the minimalist envelope genuinely runs out. Reach for these only when the
 requirement can't be met on a tiny part:
 
-- **More than 6 channels / higher-res PWM:** step to a 20-pin tinyAVR (e.g.
-  ATtiny817) for more timer outputs, or a part with 16-bit PWM for cinema-smooth
-  dimming without dithering.
+- **More than 6 channels:** step to a part with more timer outputs. Resolution is
+  no longer a reason to move — TCA0 normal mode already gives the full 16 bits,
+  which reaches the PT4115's own ~1640:1 limit.
 - **True flicker-free analog dimming:** the DAC could drive one PT4115's CTRL pin
   for zero-PWM dimming — but only one channel (one DAC), and current-dimming
   shifts LED color vs. PWM. A curiosity, not a default.
