@@ -507,6 +507,10 @@ and analog dimming costs you the constant colour temperature.
 
 ### Floorplan
 
+![Recommended component placement for one PT4115 channel](led-driver-layout.svg)
+
+*(open [`led-driver-layout.svg`](led-driver-layout.svg) full-size)*
+
 SOT89-5 pin geometry works in your favour: **VIN(5) and CSN(4) are adjacent on
 the top edge**, so `R_S` bridges them directly, and **SW(1)/GND(2) sit on the
 bottom edge**, so `C_IN` and `D1` close a tight loop down the left side.

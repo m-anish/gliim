@@ -1,0 +1,204 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 960" width="1180" height="960" font-family="Inter, Helvetica, Arial, sans-serif">
+  <defs>
+    <pattern id="gndhatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect width="7" height="7" fill="#eef2f6"/>
+      <line x1="0" y1="0" x2="0" y2="7" stroke="#ccd7e0" stroke-width="1.1"/>
+    </pattern>
+    <marker id="tick" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L6.5,3 L0,6 z" fill="#0e8074"/>
+    </marker>
+    <marker id="amb" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L6.5,3 L0,6 z" fill="#d97d00"/>
+    </marker>
+  </defs>
+
+  <rect width="1180" height="960" fill="#ffffff"/>
+
+  <text x="40" y="44" font-size="25" font-weight="700" fill="#16232e">PT4115 channel — recommended component placement</text>
+  <text x="40" y="70" font-size="14.5" fill="#5c6b7a">One channel · 2 × 4.7 µF 0805 input caps · R_S 0.15 Ω 1206 · L 47 µH · SS34 · 10 kΩ DIM pulldown.  Top layer shown; bottom layer is a solid, unbroken GND plane.</text>
+
+  <rect x="40" y="92" width="1100" height="688" rx="10" fill="url(#gndhatch)" stroke="#a8b8c6" stroke-width="1.5"/>
+
+  <!-- ══ millimetres from here ══ -->
+  <g transform="translate(40,92) scale(25)">
+
+    <!-- ─── hot-loop area (behind everything) ─── -->
+    <rect x="15.3" y="6.4" width="8.95" height="12.7" rx="0.7"
+          fill="#f5a623" opacity="0.2"/>
+    <rect x="15.3" y="6.4" width="8.95" height="12.7" rx="0.7"
+          fill="none" stroke="#d97d00" stroke-width="0.1" stroke-dasharray="0.5 0.35"/>
+
+    <!-- ─── VLED copper ─── -->
+    <g fill="#c0392b">
+      <rect x="1.5" y="1.5" width="41" height="1.7" rx="0.12"/>
+      <rect x="12.8" y="3.2" width="0.8" height="3.8"/>
+      <rect x="12.8" y="7.0" width="11.2" height="0.8" rx="0.08"/>
+      <rect x="18.9" y="7.8" width="0.8" height="4.8"/>
+      <rect x="21.4" y="7.8" width="0.8" height="2.9"/>
+    </g>
+
+    <!-- ─── signal traces ─── -->
+    <g fill="#8a3324">
+      <rect x="21.65" y="12.2" width="0.55" height="0.7"/>
+      <rect x="24.05" y="12.2" width="0.55" height="0.7"/>
+      <rect x="24.6" y="10.85" width="17.9" height="0.75" rx="0.08"/>
+      <rect x="20.4" y="15.85" width="1.55" height="0.7"/>
+      <rect x="21.35" y="16.2" width="0.8" height="0.8"/>
+      <rect x="21.35" y="18.2" width="0.8" height="1.2"/>
+      <rect x="21.35" y="19.0" width="8.85" height="0.8" rx="0.08"/>
+      <rect x="29.4" y="18.3" width="0.8" height="1.2"/>
+      <rect x="36.0" y="16.6" width="6.5" height="0.8" rx="0.08"/>
+      <rect x="24.6" y="18.2" width="0.75" height="3.9"/>
+      <rect x="25.35" y="21.4" width="0.9" height="0.7"/>
+      <rect x="24.6" y="22.1" width="0.75" height="1.9"/>
+    </g>
+
+    <!-- ─── components ─── -->
+    <!-- C1 -->
+    <g>
+      <rect x="15.9" y="7.8" width="1.25" height="2.0" fill="#e9edf1" stroke="#33475b" stroke-width="0.07"/>
+      <rect x="15.9" y="7.8"  width="1.25" height="0.62" fill="#c9a227"/>
+      <rect x="15.9" y="9.18" width="1.25" height="0.62" fill="#c9a227"/>
+      <text x="15.6" y="8.35" font-size="0.62" font-weight="700" text-anchor="end" fill="#16232e">C1</text>
+      <text x="15.6" y="8.98" font-size="0.5" text-anchor="end" fill="#5c6b7a">4µ7 50V</text>
+      <text x="15.6" y="9.58" font-size="0.5" text-anchor="end" fill="#5c6b7a">0805</text>
+    </g>
+    <!-- C2 -->
+    <g>
+      <rect x="22.6" y="7.8" width="1.25" height="2.0" fill="#e9edf1" stroke="#33475b" stroke-width="0.07"/>
+      <rect x="22.6" y="7.8"  width="1.25" height="0.62" fill="#c9a227"/>
+      <rect x="22.6" y="9.18" width="1.25" height="0.62" fill="#c9a227"/>
+      <text x="24.4" y="8.35" font-size="0.62" font-weight="700" fill="#16232e">C2</text>
+      <text x="24.4" y="8.98" font-size="0.5" fill="#5c6b7a">4µ7 50V</text>
+      <text x="24.4" y="9.58" font-size="0.5" fill="#5c6b7a">0805</text>
+    </g>
+    <!-- D1 -->
+    <g>
+      <rect x="17.75" y="12.6" width="2.65" height="4.1" rx="0.1" fill="#e9edf1" stroke="#33475b" stroke-width="0.07"/>
+      <rect x="17.75" y="12.6" width="2.65" height="1.0" fill="#c9a227"/>
+      <rect x="17.75" y="15.7" width="2.65" height="1.0" fill="#c9a227"/>
+      <rect x="17.75" y="13.72" width="2.65" height="0.3" fill="#33475b"/>
+      <text x="19.07" y="13.4"  font-size="0.6" font-weight="700" text-anchor="middle" fill="#7a3010">K</text>
+      <text x="19.07" y="16.45" font-size="0.6" font-weight="700" text-anchor="middle" fill="#5c4600">A</text>
+      <text x="19.07" y="14.85" font-size="0.66" font-weight="700" text-anchor="middle" fill="#16232e">D1</text>
+      <text x="19.07" y="15.42" font-size="0.5"  text-anchor="middle" fill="#5c6b7a">SS34</text>
+    </g>
+    <!-- R_S -->
+    <g>
+      <rect x="21.4" y="10.7" width="3.2" height="1.5" fill="#e9edf1" stroke="#33475b" stroke-width="0.07"/>
+      <rect x="21.4" y="10.7" width="0.8" height="1.5" fill="#c9a227"/>
+      <rect x="23.8" y="10.7" width="0.8" height="1.5" fill="#c9a227"/>
+      <text x="23.0" y="11.35" font-size="0.6" font-weight="700" text-anchor="middle" fill="#16232e">R_S</text>
+      <text x="23.0" y="11.93" font-size="0.5" text-anchor="middle" fill="#5c6b7a">0.15Ω 1206</text>
+    </g>
+    <!-- IC -->
+    <g>
+      <g fill="#c9a227">
+        <rect x="21.6"  y="12.9" width="0.8" height="1.1"/>
+        <rect x="24.1"  y="12.9" width="0.8" height="1.1"/>
+        <rect x="21.35" y="17.0" width="0.8" height="1.2"/>
+        <rect x="22.85" y="17.0" width="0.8" height="1.2"/>
+        <rect x="24.35" y="17.0" width="0.8" height="1.2"/>
+      </g>
+      <rect x="21.0" y="14.0" width="4.5" height="3.0" rx="0.12" fill="#2f3e4d" stroke="#16232e" stroke-width="0.07"/>
+      <circle cx="21.5" cy="14.5" r="0.15" fill="#8fa3b5"/>
+      <text x="23.25" y="15.5"  font-size="0.68" font-weight="700" text-anchor="middle" fill="#ffffff">PT4115</text>
+      <text x="23.25" y="16.12" font-size="0.5" text-anchor="middle" fill="#b9c6d1">SOT89-5</text>
+      <g font-size="0.48" font-weight="700" text-anchor="middle" fill="#5c4600">
+        <text x="22.0" y="13.6">5</text><text x="24.5" y="13.6">4</text>
+        <text x="21.75" y="17.85">1</text><text x="23.25" y="17.85">2</text><text x="24.75" y="17.85">3</text>
+      </g>
+      <text x="21.25" y="13.52" font-size="0.54" text-anchor="end" fill="#16232e" font-weight="600">VIN</text>
+      <text x="25.25" y="13.52" font-size="0.54" fill="#16232e" font-weight="600">CSN</text>
+      <text x="21.05" y="17.88" font-size="0.54" text-anchor="end" fill="#16232e" font-weight="600">SW</text>
+      <text x="23.25" y="18.92" font-size="0.54" text-anchor="middle" fill="#16232e" font-weight="600">GND</text>
+      <text x="25.45" y="17.88" font-size="0.54" fill="#16232e" font-weight="600">DIM</text>
+    </g>
+    <!-- L1 -->
+    <g>
+      <rect x="29.0" y="13.3" width="7.0" height="7.0" rx="0.45" fill="#e9edf1" stroke="#33475b" stroke-width="0.09"/>
+      <rect x="29.0" y="15.4" width="1.2" height="3.0" fill="#c9a227"/>
+      <rect x="34.8" y="15.4" width="1.2" height="3.0" fill="#c9a227"/>
+      <circle cx="32.5" cy="16.9" r="1.7" fill="none" stroke="#9fb0bd" stroke-width="0.13"/>
+      <circle cx="32.5" cy="16.9" r="1.1" fill="none" stroke="#9fb0bd" stroke-width="0.13"/>
+      <text x="32.5" y="14.5" font-size="0.68" font-weight="700" text-anchor="middle" fill="#16232e">L1  47 µH</text>
+      <text x="32.5" y="19.4" font-size="0.52" text-anchor="middle" fill="#5c6b7a">I_sat ≥ 1.2 A</text>
+      <text x="32.5" y="19.98" font-size="0.52" text-anchor="middle" fill="#5c6b7a">shielded</text>
+    </g>
+    <!-- 10k pulldown -->
+    <g>
+      <rect x="26.25" y="21.15" width="2.0" height="1.25" fill="#e9edf1" stroke="#33475b" stroke-width="0.07"/>
+      <rect x="26.25" y="21.15" width="0.62" height="1.25" fill="#c9a227"/>
+      <rect x="27.63" y="21.15" width="0.62" height="1.25" fill="#c9a227"/>
+      <text x="28.7" y="21.75" font-size="0.6" font-weight="700" fill="#16232e">10 kΩ</text>
+      <text x="28.7" y="22.4" font-size="0.52" fill="#c0392b" font-weight="600">DIM pulldown — mandatory</text>
+    </g>
+
+    <!-- ─── GND vias ─── -->
+    <g fill="#33475b">
+      <circle cx="16.52" cy="9.49" r="0.26"/><circle cx="16.52" cy="9.49" r="0.12" fill="#ffffff"/>
+      <circle cx="23.22" cy="9.49" r="0.26"/><circle cx="23.22" cy="9.49" r="0.12" fill="#ffffff"/>
+      <circle cx="23.25" cy="17.6" r="0.26"/><circle cx="23.25" cy="17.6" r="0.12" fill="#ffffff"/>
+      <circle cx="27.94" cy="21.77" r="0.26"/><circle cx="27.94" cy="21.77" r="0.12" fill="#ffffff"/>
+    </g>
+
+    <!-- ─── Kelvin callouts ─── -->
+    <g stroke="#0e8074" stroke-width="0.08" fill="none">
+      <path d="M 27.2 12.5 L 24.35 12.5 L 24.35 12.9" marker-end="url(#tick)"/>
+      <path d="M 27.2 13.4 L 21.9 13.4 L 21.9 13.0" marker-end="url(#tick)"/>
+    </g>
+    <text x="27.35" y="12.7" font-size="0.56" fill="#0e8074" font-weight="700">Kelvin: each pin taps</text>
+    <text x="27.35" y="13.6" font-size="0.56" fill="#0e8074" font-weight="700">its own R_S pad</text>
+
+    <!-- ─── hot loop callout ─── -->
+    <g stroke="#d97d00" stroke-width="0.09" fill="none">
+      <path d="M 11.4 12.1 L 15.15 12.1" marker-end="url(#amb)"/>
+    </g>
+    <text x="11.2" y="11.5" font-size="0.72" font-weight="700" text-anchor="end" fill="#b06a00">HOT LOOP</text>
+    <text x="11.2" y="12.3" font-size="0.56" text-anchor="end" fill="#a06000">C1 → VLED → D1 → SW →</text>
+    <text x="11.2" y="12.95" font-size="0.56" text-anchor="end" fill="#a06000">FET → GND(2) → plane</text>
+    <text x="11.2" y="13.8" font-size="0.56" text-anchor="end" fill="#a06000" font-style="italic">the only fast-di/dt path:</text>
+    <text x="11.2" y="14.45" font-size="0.56" text-anchor="end" fill="#a06000" font-style="italic">keep this area tight</text>
+
+    <!-- ─── net labels ─── -->
+    <text x="1.8" y="1.15" font-size="0.72" font-weight="700" fill="#c0392b">VLED — from the shared 100 µF bulk cap</text>
+    <g font-size="0.7" font-weight="700" fill="#8a3324">
+      <text x="37.6" y="10.35">LED1+</text>
+      <text x="37.6" y="16.05">LED1−</text>
+      <text x="25.7" y="23.85">DIM ← MCU</text>
+    </g>
+    <text x="40.6" y="13.1" font-size="0.54" text-anchor="middle" fill="#5c6b7a">to the LED</text>
+    <text x="40.6" y="13.7" font-size="0.54" text-anchor="middle" fill="#5c6b7a">string (off board)</text>
+
+    <!-- ─── numbered badges ─── -->
+    <g font-size="0.66" font-weight="700" text-anchor="middle">
+      <circle cx="17.5"  cy="6.0"  r="0.58" fill="#33475b"/><text x="17.5"  y="6.22"  fill="#ffffff">4</text>
+      <circle cx="27.9"  cy="15.9" r="0.58" fill="#33475b"/><text x="27.9"  y="16.12" fill="#ffffff">3</text>
+      <circle cx="25.55" cy="20.4" r="0.58" fill="#c0392b"/><text x="25.55" y="20.62" fill="#ffffff">5</text>
+    </g>
+
+    <!-- notes bottom-left -->
+    <text x="2.0" y="19.6" font-size="0.56" fill="#5c6b7a" font-style="italic">hatched = bottom-layer GND plane.</text>
+    <text x="2.0" y="20.3" font-size="0.56" fill="#5c6b7a" font-style="italic">Keep it continuous — the return current</text>
+    <text x="2.0" y="21.0" font-size="0.56" fill="#5c6b7a" font-style="italic">flows directly beneath the outbound trace,</text>
+    <text x="2.0" y="21.7" font-size="0.56" fill="#5c6b7a" font-style="italic">so a slot under the loop undoes the layout.</text>
+    <g stroke="#5c6b7a" stroke-width="0.08">
+      <path d="M 2.0 23.3 L 12.0 23.3 M 2.0 23.0 L 2.0 23.6 M 12.0 23.0 L 12.0 23.6"/>
+    </g>
+    <text x="7.0" y="24.2" font-size="0.6" text-anchor="middle" fill="#5c6b7a">10 mm</text>
+  </g>
+
+  <!-- ── legend ── -->
+  <g transform="translate(40,812)" font-size="14" fill="#33475b">
+    <rect x="0" y="-16" width="1100" height="122" rx="8" fill="#f7f9fb" stroke="#dde5eb" stroke-width="1"/>
+    <g font-size="12" font-weight="700" text-anchor="middle" fill="#ffffff">
+      <circle cx="26" cy="42" r="9" fill="#33475b"/><text x="26" y="46">3</text>
+      <circle cx="26" cy="72" r="9" fill="#33475b"/><text x="26" y="76">4</text>
+      <circle cx="596" cy="72" r="9" fill="#c0392b"/><text x="596" y="76">5</text>
+    </g>
+    <text x="26" y="14" font-size="15"><tspan font-weight="700" fill="#b06a00">Only C1, D1 and the IC need tight placement.</tspan> R_S, L1 and the LED string carry the continuous inductor current — they are not in the hot loop.</text>
+    <text x="44" y="46"><tspan font-weight="700">L1 goes after the LED, not before it.</tspan> The switching node then stays between L1 and SW, on the board, and both wires out to the string sit quiet.</text>
+    <text x="44" y="76"><tspan font-weight="700">Two caps, split.</tspan> C1 at D1's cathode, C2 at VIN.  On D1: <tspan font-weight="700">K</tspan> = cathode (banded end) → VLED, <tspan font-weight="700">A</tspan> = anode → SW.</text>
+    <text x="614" y="76"><tspan font-weight="700">10 kΩ pulldown.</tspan> Without it the channel sits at 100 % while the MCU boots.</text>
+  </g>
+</svg>
