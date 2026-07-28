@@ -21,14 +21,15 @@ Companion documents:
 | # | Change | Why |
 |---|---|---|
 | 1 | **ATtiny814 → ATtiny3216** | rev1 is at 74 % of 8 KB with IR in. 32 KB / 2 KB and 18 I/O end the pin and flash squeeze; same `txy6` pinout as the 1616, and cheaper locally. |
-| 2 | **LED PWM moves to PB0/PB1/PB2, 16-bit** | The big one. See §2 — it's worth ~6× more dimming depth, for free. |
+| 2 | **LED PWM → 16-bit** (on PB3/PB4/PB5) | The big one. See §2 — worth ~6× more dimming depth, for free. |
 | 3 | **10 kΩ pulldown on every DIM line** | The PT4115 pulls DIM up internally: **a floating DIM pin means full brightness.** rev1 flashes at full while the MCU boots. |
 | 4 | **USB-C PD inlet** | A decoy board gives 9/12/15/20 V from any laptop charger. No barrel jack, no wall-wart hunt. |
 | 5 | **IR receiver on-board** | Couch control. The single most useful addition for the actual use case. |
-| 6 | **Status pixel on-board** | rev1 proved it: with no screen, "which channel am I steering?" needs an answer that persists. |
+| 6 | **Status LED on-board** | rev1 proved it: with no screen, "which channel am I steering?" needs an answer that persists. A plain **bicolor LED**, not a WS2812 — see §7. |
 | 7 | **Input is a populate-time choice** | Joystick module *or* 5-way tactile + ladder, sharing one ADC pin. |
 | 8 | **Qwiic I²C connector** | PB0/PB1, via a 3.3 V LDO + level shifter. Turns the ambient-light sensor and friends into plug-in modules. §5. |
-| 9 | **Reverse-polarity + fusing on the LED rail** | It's going in someone's home. |
+| 9 | **WS2812 → bicolor LED** | No interrupts-off bit-bang next to the IR decoder, works at any rail, and smaller. §7. |
+| 10 | **Reverse-polarity + fusing on the LED rail** | It's going in someone's home. |
 
 ---
 
@@ -58,10 +59,10 @@ and 25:1 at 20 kHz. Compare that against what 8-bit resolution actually delivers
 
 So resolution, not the driver, is the binding constraint — and more PWM bits
 genuinely help. On the ATtiny3216, **TCA0 in normal (16-bit) mode** drives
-`WO0/WO1/WO2` → PB0/PB1/PB2 (with WO2 relocatable to PB5): exactly three
-channels, exactly what we need.
-The ATtiny814 has the same three pins, so rev1 was rewired to match and **one
-firmware source now builds for both boards** — see §8.
+`WO0/WO1/WO2`: exactly three channels, exactly what we need. rev1 takes them at
+their default pins (PB0/PB1/PB2); rev2 relocates all three to PB3/PB4/PB5 to free
+PB0–PB2 for I²C and the UART (§4). Either way it is the same three timer outputs,
+so **one firmware source builds for both boards** — see §9.
 
 Recommended operating point — same frequency as today, 6.4× deeper:
 
@@ -119,7 +120,7 @@ dithering) are quantified in §4.
        │            ┌──────┴───────┐                  │
        └────────────┤  ATtiny3216  ├──────────────────┘
                     └──┬───┬───┬───┘
-              PA1/PA7 ─┘   │   ├─ PC1 → WS2812 status pixel
+              PA1/PA7 ─┘   │   ├─ PC1/PC2 → bicolor status LED
               input        │   └─ PC0 ← TSOP38238 IR receiver
         (joystick OR       └───── PB0/PB1 → Qwiic I²C (via 3V3 LDO
          5-way ladder)                       + level shifter, §5)
@@ -179,8 +180,8 @@ six.
 | 10 | PB1 | **I²C SDA** | **I²C SDA** | TWI0 SDA → Qwiic |
 | 11 | PB0 | **I²C SCL** | **I²C SCL** | TWI0 SCL → Qwiic |
 | 12 | PC0 | **IR receiver** | **IR receiver** | TSOP38238 OUT |
-| 13 | PC1 | **WS2812 data** | **WS2812 data** | status pixel |
-| 14 | PC2 | *free* | *free* | |
+| 13 | PC1 | **Status LED — red** | **Status LED — red** | bicolor LED, anode |
+| 14 | PC2 | **Status LED — green** | **Status LED — green** | bicolor LED, anode |
 | 15 | PC3 | *free* | *free* | (WO3 alt — leave clear) |
 | 16 | PA0 | **UPDI** | **UPDI** | 1 kΩ series to header |
 | 17 | PA1 | **Joystick X / ladder** | same | AIN1 |
@@ -189,8 +190,8 @@ six.
 | 20 | **GND** | GND | GND | |
 
 Only PA3/PA4/PA5 change role between the two builds, so **one PCB serves both** —
-populate three drivers or six and let firmware pick the mode. Two pins (PC2, PC3)
-and PA6 stay free either way.
+populate three drivers or six and let firmware pick the mode. PA6 and PC3 stay
+free either way.
 
 #### Why the LEDs are on PB3/PB4/PB5, not PB0/PB1/PB2
 
@@ -336,19 +337,26 @@ Note the trade isn't all one way — the longer period means the driver's fixed
 you give up is flicker margin: 152 Hz is above flicker fusion, but stroboscopic
 artifacts (a waving hand, a phone camera) get noticeably more visible.
 
-**2. The WS2812 doesn't like it.** Its V_DD spec is ~3.5–5.3 V, so 3.3 V is
-*below* spec; and powering it at 5 V instead doesn't help, because DIN then needs
-0.7 × 5 = 3.5 V, which 3.3 V logic can't guarantee. You'd need a level shifter on
-the data line — trading one shifter for another.
+**2. ~~The WS2812 doesn't like it.~~** *This objection is gone* — the status
+indicator is now a plain bicolor LED (§7), which works at any rail. It was the
+WS2812's 3.5 V minimum that made this awkward.
 
-**Recommendation: stay at 5 V.** The Qwiic sub-circuit is seven standard parts
-and ~₹40 for a solved problem, against giving up half the flicker margin and
-re-solving the status pixel.
+**So the only remaining question is the clock**, and it is a genuine judgement
+call rather than a blocker:
 
-> **But it's a real option if you want it.** Swap the WS2812 for a plain bicolor
-> LED (works at any rail, two resistors) and accept 152 Hz, and 3.3 V becomes
-> clean: no LDO, no shifter, native Qwiic, and *deeper* dimming into the bargain.
-> That is a defensible board — just a different one.
+| | 5 V / 20 MHz | 3.3 V / 10 MHz |
+|---|---|---|
+| PWM frequency | **305 Hz** | 152 Hz |
+| Dimming ratio | 1638:1 | **3277:1** |
+| Qwiic | LDO + 2 × BSS138 + 4 R (~₹40) | **native — none of it** |
+| Everything else | — | identical |
+
+**Current spec: 5 V**, for the flicker margin — 152 Hz clears flicker fusion but
+stroboscopic artifacts (a waving hand, a phone camera) become more visible, and
+this is a *lighting* product. If you'd rather delete the level-shifter circuit
+and take deeper dimming, 3.3 V is now a clean, coherent board: change
+`board_build.f_cpu` to `10000000L`, re-fuse, and drop the LDO and shifter from
+the BOM. Nothing else in the design objects.
 
 ### What it's for
 
@@ -453,10 +461,36 @@ learn mode, store codes in EEPROM), so no specific remote SKU is load-bearing �
 including the user's own TV remote. A 44-key RGB-strip remote is the best default:
 it already has Bright± / ON / OFF / presets.
 
-### Status pixel
-One **WS2812B** on **PC1** (`tinyNeoPixel` ships with megaTinyCore). Colour =
-selected channel; dim glow when everything is off, so the control is findable in
-a dark room. 100 nF decoupling at the pixel.
+### Status LED — bicolor, not a WS2812
+
+A plain **3-pin common-cathode bicolor LED** on **PC1 (red)** and **PC2 (green)**,
+each through its own resistor. Two GPIOs, no library, no addressable protocol.
+
+rev1 used a WS2812 and it worked, but the discrete part is better here on three
+counts:
+
+1. **No interrupts-off window.** The WS2812 bit-bang blocks interrupts for ~30 µs
+   per update — a latent hazard for the IR decoder, whose ISR times edges to a
+   few µs. A GPIO write has no such cost.
+2. **Rail-agnostic.** The WS2812 wants V_DD ≥ 3.5 V, which is what pinned rev2
+   to 5 V in §5. An LED and two resistors work at any rail.
+3. **Smaller.** Dropping `tinyNeoPixel` saved ~280 B net after the replacement
+   code; a discrete LED is also cheaper than a WS2812.
+
+Two emitters give three colours, which is exactly the 3-channel case — and
+channels 4–6 reuse them blinking, so one part still distinguishes all six:
+
+| Channel | 1 | 2 | 3 | 4 | 5 | 6 |
+|---|---|---|---|---|---|---|
+| | red | green | amber | red *blink* | green *blink* | amber *blink* |
+
+Brightness is software PWM — lit for 1 ms in every N — so no timer is consumed:
+`N = 2` (50 %, 500 Hz) normally, `N = 8` (12.5 %, 125 Hz) when every channel is
+off, which is the dark-room locator glow. Both are well above flicker fusion for
+a small indicator. Tune with `STATUS_LED_DIV_*` in `config.h`.
+
+Resistors: ~1 kΩ per leg at 5 V gives a comfortable ~3 mA. Set
+`STATUS_LED_ANODE_COMMON` to 1 in `config.h` if you fit a common-**anode** part.
 
 ### Channel indicator LEDs
 LED + 1 kΩ to GND on each **DIM** line — **zero extra pins**, and brightness
@@ -485,7 +519,7 @@ anything but UPDI.
 | 9 | USB-C PD decoy board | 1 | jumper to 20 V |
 | 10 | 5 V buck module (LM2596) | 1 | from the LED rail |
 | 11 | TSOP38238 | 1 | + 100 Ω, 4.7 µF, 100 nF |
-| 12 | WS2812B | 1 | + 100 nF |
+| 12 | Bicolor LED (3-pin, common cathode) + 2 × 1 kΩ | 1 | status indicator — §7 |
 | 13 | 5-way tactile switch | 1 | *or* joystick module — see input doc |
 | 14 | Ladder resistors 470 Ω/1 k/2.2 k/4.7 k, 1 % | 1 ea | if ladder fitted |
 | 15 | Indicator LED + 1 kΩ | 3 ea | optional |
@@ -527,7 +561,8 @@ Current footprint: **6 430 B of 32 768 (19.6 %)**, 137 B of 2 048 RAM (6.7 %).
   tiers stay correct.
 - **IR NEC decode + learn mode** — falling-edge ISR, six learnable actions,
   codes in EEPROM.
-- WS2812 status pixel, soft transitions, fixed-duration boot fade, watchdog,
+- Status indicator (WS2812 on rev1, **bicolor LED** on rev2), soft transitions,
+  fixed-duration boot fade, watchdog,
   EEPROM struct versioning, factory-reset gesture.
 
 ### Still to do for rev2

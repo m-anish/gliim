@@ -126,7 +126,8 @@ static inline void setHR(uint8_t ch, uint16_t hr) {
 static void pwmInit() {
   takeOverTCA0();                                  // core stops managing TCA0
   // Relocate any waveform outputs that don't sit at their default pin. rev1
-  // writes 0 here; rev2 moves WO2 to PB5 so USART0 can have PB2/PB3.
+  // writes 0 here; rev2 moves all three to PB3/PB4/PB5 so I²C gets PB0/PB1 and
+  // USART0 gets PB2.
   PORTMUX.CTRLC = PWM_PORTMUX;
   PORTB.DIRSET = LED_DIR_bm;                       // WO0/WO1/WO2 as outputs
 
@@ -386,6 +387,48 @@ static void updateStatusPixel(bool force) {
            (uint8_t)(((uint16_t)((c >>  8) & 0xFF) * scale) / 255),
            (uint8_t)(((uint16_t)( c        & 0xFF) * scale) / 255));
 }
+
+#elif GLIM_STATUS_BICOLOR
+// Bicolor LED: two GPIOs, no library. Colour says which channel is selected;
+// brightness is software PWM ("lit 1 ms in every N"), which is plenty steady for
+// an indicator and costs nothing but a compare in loop().
+static inline void ledWrite(uint8_t pin, bool on) {
+#if STATUS_LED_ANODE_COMMON
+  digitalWrite(pin, on ? LOW : HIGH);
+#else
+  digitalWrite(pin, on ? HIGH : LOW);
+#endif
+}
+
+// Used by irLearn() for its feedback flashes: map an RGB request onto the two
+// emitters we actually have — anything with red becomes red, green becomes
+// green, and both lit reads as amber.
+static void pixelRGB(uint8_t r, uint8_t g, uint8_t b) {
+  (void)b;
+  ledWrite(STATUS_LED_R_PIN, r > 30);
+  ledWrite(STATUS_LED_G_PIN, g > 30);
+}
+
+static void updateStatusPixel(bool force) {
+  (void)force;                                  // cheap enough to redo every loop
+  bool idle = true;
+  for (uint8_t c = 0; c < NUM_CHANNELS; c++)
+    if (!muted[c] && level[c] > 0) { idle = false; break; }
+
+  uint32_t now = millis();
+
+  // Channels beyond the third reuse the same three colours, blinking.
+  bool blanked = (selected >= 3) && ((now / STATUS_LED_BLINK_MS) & 1);
+
+  // Software PWM: lit for the first millisecond of every N.
+  uint8_t div = idle ? STATUS_LED_DIV_IDLE : STATUS_LED_DIV_ON;
+  bool lit = !blanked && ((now % div) == 0);
+
+  uint8_t colour = selected % 3;                // 0 red, 1 green, 2 both
+  ledWrite(STATUS_LED_R_PIN, lit && (colour != 1));
+  ledWrite(STATUS_LED_G_PIN, lit && (colour != 0));
+}
+
 #else
 static void updateStatusPixel(bool) {}
 static void pixelRGB(uint8_t, uint8_t, uint8_t) {}
@@ -693,6 +736,9 @@ void setup() {
   pinMode(JOY_SW_PIN, INPUT_PULLUP);
 #if GLIM_STATUS_PIXEL
   pinMode(STATUS_PIXEL_PIN, OUTPUT);   // required by the _Static variant
+#elif GLIM_STATUS_BICOLOR
+  pinMode(STATUS_LED_R_PIN, OUTPUT);
+  pinMode(STATUS_LED_G_PIN, OUTPUT);
 #endif
   pwmInit();
 
