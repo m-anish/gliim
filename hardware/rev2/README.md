@@ -27,7 +27,8 @@ Companion documents:
 | 5 | **IR receiver on-board** | Couch control. The single most useful addition for the actual use case. |
 | 6 | **Status pixel on-board** | rev1 proved it: with no screen, "which channel am I steering?" needs an answer that persists. |
 | 7 | **Input is a populate-time choice** | Joystick module *or* 5-way tactile + ladder, sharing one ADC pin. |
-| 8 | **Reverse-polarity + fusing on the LED rail** | It's going in someone's home. |
+| 8 | **Qwiic I²C connector** | PB0/PB1, via a 3.3 V LDO + level shifter. Turns the ambient-light sensor and friends into plug-in modules. §5. |
+| 9 | **Reverse-polarity + fusing on the LED rail** | It's going in someone's home. |
 
 ---
 
@@ -78,15 +79,15 @@ drivers you populate:
 
 | Mode | Channels | Resolution | Pins |
 |---|---|---|---|
-| **TCA0 normal** (default) | 3 | 16-bit | PB0, PB1, **PB5** |
-| TCA0 split | 6 | 8-bit | PB0, PB1, PB5 + PA3, PA4, PA5 |
+| **TCA0 normal** (default) | 3 | 16-bit | **PB3, PB4, PB5** |
+| TCA0 split | 6 | 8-bit | PB3, PB4, PB5 + PA3, PA4, PA5 |
 
 For a home dimmer, dimming *quality* beats channel count — ship normal mode. The
 6-channel option and what 8-bit actually costs (less than you'd think, with
 dithering) are quantified in §4.
 
-> ch3 is on **PB5** rather than the default PB2 on rev2, which frees USART0's
-> pins for a hardware UART. See §4.
+> On rev2 all three sit on TCA0's *alternate* pins (PB3/PB4/PB5), freeing
+> PB0/PB1 for I²C and PB2 for the UART. See §4.
 
 > Consequence for firmware, now implemented: temporal dithering was deleted
 > (16-bit far exceeds what dithering bought at 8-bit) and gamma is computed in
@@ -112,18 +113,19 @@ dithering) are quantified in §4.
        │    LED str 1   LED str 2    LED str 3        │ 5 V
        │       ▲           ▲            ▲             │
        │       │DIM        │DIM         │DIM          │
-       │    PB0│        PB1│         PB5│             │
+       │    PB3│        PB4│         PB5│             │
        │       └───────────┴────────────┘             │
        │                   │                          │
        │            ┌──────┴───────┐                  │
        └────────────┤  ATtiny3216  ├──────────────────┘
                     └──┬───┬───┬───┘
-              PA1/PA7 ─┘   │   └─ PC1 → WS2812 status pixel
-              input        └───── PC0 ← TSOP38238 IR receiver
-        (joystick OR 5-way ladder)
+              PA1/PA7 ─┘   │   ├─ PC1 → WS2812 status pixel
+              input        │   └─ PC0 ← TSOP38238 IR receiver
+        (joystick OR       └───── PB0/PB1 → Qwiic I²C (via 3V3 LDO
+         5-way ladder)                       + level shifter, §5)
 ```
 
-All grounds common. See §5 for why the 5 V rail is drawn off the LED rail rather
+All grounds common. See §6 for why the 5 V rail is drawn off the LED rail rather
 than from a second PD board.
 
 ---
@@ -159,8 +161,9 @@ Choose SOIC-20 over VQFN-20 unless you're reflowing — it hand-solders fine.
 
 ### Pin map — exact, SOIC-20
 
-Physical numbering from datasheet **DS40002205A Table 5-1** (the "SOIC 20-Pin"
-column), not inferred. Board routes all six LED channels; populate three or six.
+Physical numbering from datasheet **DS40002205A Table 5-1** ("SOIC 20-Pin"
+column), not inferred. The board routes all six LED channels; populate three or
+six.
 
 | Pin | Port | 3-channel build (default) | 6-channel build | Peripheral |
 |----:|------|---------------------------|-----------------|------------|
@@ -169,40 +172,46 @@ column), not inferred. Board routes all six LED channels; populate three or six.
 | 3 | PA5 | *free* | **LED ch6** | TCA0 WO5 · VREFA |
 | 4 | PA6 | *free* | *free* | DAC out |
 | 5 | PA7 | **Switch** | **Switch** | joystick SW / ladder centre, `INPUT_PULLUP` |
-| 6 | PB5 | **LED ch3** | **LED ch3** | TCA0 **WO2 alternate** |
-| 7 | PB4 | *free* | *free* | AIN9 |
-| 8 | PB3 | **UART RXD** | **UART RXD** | USART0 RxD |
+| 6 | PB5 | **LED ch3** | **LED ch3** | TCA0 WO2 *(alt)* |
+| 7 | PB4 | **LED ch2** | **LED ch2** | TCA0 WO1 *(alt)* |
+| 8 | PB3 | **LED ch1** | **LED ch1** | TCA0 WO0 *(alt)* |
 | 9 | PB2 | **UART TXD** | **UART TXD** | USART0 TxD — adapter's RX here |
-| 10 | PB1 | **LED ch2** | **LED ch2** | TCA0 WO1 |
-| 11 | PB0 | **LED ch1** | **LED ch1** | TCA0 WO0 |
+| 10 | PB1 | **I²C SDA** | **I²C SDA** | TWI0 SDA → Qwiic |
+| 11 | PB0 | **I²C SCL** | **I²C SCL** | TWI0 SCL → Qwiic |
 | 12 | PC0 | **IR receiver** | **IR receiver** | TSOP38238 OUT |
 | 13 | PC1 | **WS2812 data** | **WS2812 data** | status pixel |
 | 14 | PC2 | *free* | *free* | |
-| 15 | PC3 | *free* | *free* | (WO3 alternate — leave clear) |
+| 15 | PC3 | *free* | *free* | (WO3 alt — leave clear) |
 | 16 | PA0 | **UPDI** | **UPDI** | 1 kΩ series to header |
 | 17 | PA1 | **Joystick X / ladder** | same | AIN1 |
 | 18 | PA2 | **Joystick Y** | same | AIN2 — unused with the ladder |
 | 19 | PA3 | *free* | **LED ch4** | TCA0 WO3 · EXTCLK |
 | 20 | **GND** | GND | GND | |
 
-Only PA3/PA4/PA5 change role between the two builds — everything else is fixed,
-so **one PCB serves both**. Populate three drivers or six; firmware picks the mode.
+Only PA3/PA4/PA5 change role between the two builds, so **one PCB serves both** —
+populate three drivers or six and let firmware pick the mode. Two pins (PC2, PC3)
+and PA6 stay free either way.
 
-#### Why LED ch3 sits on PB5, not PB2
+#### Why the LEDs are on PB3/PB4/PB5, not PB0/PB1/PB2
 
-PB2 is TCA0's *default* WO2 — but it is also **USART0's TXD**, and USART0's only
-alternate is PA1/PA2, which the input occupies. rev1 lost its hardware UART to
-exactly this clash.
+Because **I²C has nowhere else to go.** Table 5-1 puts TWI0 on exactly two pin
+pairs: `PB1/PB0` (default) or `PA1/PA2` (alternate). PA1/PA2 are the joystick's
+ADC inputs, so the alternate is unavailable — which leaves PB0/PB1, and those
+were the LED outputs.
 
-`PORTMUX.CTRLC.TCA02` relocates WO2 to **PB5**, freeing PB2/PB3 for the UART at
-its default position. Crucially, §15.3.3 restricts only TCA03/04/05 to split
-mode — **TCA00/01/02 work in normal (16-bit) mode too**, which is the mode we
-actually use. One register write buys:
+TCA0's outputs relocate instead: `PORTMUX.CTRLC` bits `TCA00/TCA01/TCA02` move
+WO0/WO1/WO2 to **PB3/PB4/PB5**. §15.3.3 restricts only TCA03/04/05 to split mode,
+so all three work in the 16-bit normal mode we actually use. One register write
+in `pwmInit()` buys three things the 14-pin rev1 could never have:
 
-- a **real hardware UART** for debug telemetry, and
-- **IR and telemetry running together**, because SoftwareSerial's interrupt
-  dispatcher is no longer involved to collide with the IR ISR. On rev1 those two
-  are mutually exclusive; verified on rev2 that both link into one build.
+- **I²C / Qwiic** on PB0/PB1 (§5 below);
+- a **real hardware UART** on PB2 for debug telemetry;
+- consequently **IR and telemetry at the same time** — SoftwareSerial's interrupt
+  dispatcher, which collides with the IR ISR on rev1, is no longer involved.
+
+**The one thing it costs:** USART0's RXD is PB3, now LED ch1 — so debug serial is
+**transmit-only**. That's all telemetry needs; firmware clears `RXEN` so the
+receiver can't sit interrupting on the PWM waveform.
 
 ### 6 channels means 8-bit — and how much that costs
 
@@ -238,7 +247,82 @@ Keep analog inputs on PORTA.
 
 ---
 
-## 5. Power
+## 5. Qwiic / I²C — read the voltage note first
+
+TWI0 comes out on **PB1 (SDA)** and **PB0 (SCL)**, brought to a standard
+**Qwiic connector: JST-SH 4-pin, 1 mm pitch**, pinout in the usual order:
+
+| Qwiic pin | Signal | Wire colour |
+|---|---|---|
+| 1 | GND | black |
+| 2 | **3.3 V** | red |
+| 3 | SDA | blue |
+| 4 | SCL | yellow |
+
+> ### ⚠ Qwiic is a 3.3 V standard. glim runs at 5 V.
+>
+> You cannot wire PB0/PB1 and the 5 V rail straight to a Qwiic socket — you will
+> put 5 V into peripherals rated for 3.3 V. This is not a "probably fine"
+> situation; it is the single thing to get right about this connector.
+>
+> Nor does a shared 3.3 V pull-up rescue it. I²C is open-drain, so the pull-up
+> sets the high level: pull to 3.3 V and the bus idles at 3.3 V, but the ATtiny
+> at V_DD = 5 V needs **V_IH ≥ 0.7 × 5 = 3.5 V** to read a high. 3.3 V is below
+> that — marginal at best, and temperature-dependent.
+
+### The circuit that works
+
+```
+   5 V ──┬──────────────────┬─────────────► [LDO 3.3 V] ──┬──── Qwiic pin 2
+         │                  │                             │
+        │R│ 10k            │R│ 10k                       │R│ 4k7   │R│ 4k7
+         │                  │                             │        │
+  PB1 ───┴──────┐    PB0 ───┴──────┐                      │        │
+   (SDA)        │     (SCL)        │                      │        │
+              ──┴──              ──┴──                    │        │
+              │ G │ BSS138       │ G │ BSS138             │        │
+         5V ─┤S   D├── 3V3 ─────┤S   D├── 3V3             │        │
+              └───┘              └───┘                     │        │
+                │                  │                       │        │
+                └──────────────────┼───────────────────────┴────────┤
+                                   └──────────────────────► Qwiic 3 (SDA)
+                                                            Qwiic 4 (SCL)
+   GND ──────────────────────────────────────────────────► Qwiic pin 1
+```
+
+The classic bidirectional two-MOSFET translator: gate to 3.3 V, source to the
+3.3 V side, drain to the 5 V side, with pull-ups on **both** sides.
+
+| Part | Qty | Note |
+|---|---|---|
+| **3.3 V LDO** — MCP1700-3302 / XC6206P332 | 1 | from the 5 V rail; 100 mA is ample |
+| 1 µF ceramic | 2 | LDO in/out |
+| **BSS138** (SOT-23) | 2 | one per line — logic-level, low V_GS(th) |
+| 10 kΩ | 2 | pull-ups, 5 V side |
+| 4.7 kΩ | 2 | pull-ups, 3.3 V side |
+| **JST-SH 4-pin SMD socket** | 1 | Qwiic / STEMMA QT / Grove-mini all use this |
+
+Total ~₹40. All of it is stocked by Robu/Evelta, and a pre-made "I²C level
+converter" module works too if you'd rather not place the discretes.
+
+> **STEMMA QT** uses the same connector and pinout, and many Adafruit breakouts
+> are 5 V tolerant with on-board regulators — but *many* is not *all*. Build the
+> shifter and the question never arises.
+
+### What it's for
+
+An I²C port turns several roadmap items into plug-in modules rather than board
+respins: an **ambient-light sensor** (VEML7700, BH1750) to cap brightness in
+daylight, an **RTC** for time-of-day behaviour, a small **OLED** if glim ever
+wants a screen, or an **I/O expander** for more buttons. It's the cheapest
+future-proofing on the board.
+
+Firmware exposes nothing on the bus yet — `GLIM_I2C` in `config.h` just records
+that the pins are reserved.
+
+---
+
+## 6. Power
 
 ### LED rail — USB-C PD decoy board
 
@@ -293,7 +377,7 @@ if you ever move up. LM2596 (40 V) is the safer pick.
 
 ---
 
-## 6. Subsystems
+## 7. Subsystems
 
 ### LED channels ×3 (expandable to 6)
 Full circuit, component values, and layout rules in
@@ -345,7 +429,7 @@ anything but UPDI.
 
 ---
 
-## 7. BOM (one 3-channel unit)
+## 8. BOM (one 3-channel unit)
 
 | # | Part | Qty | Notes |
 |---|---|---|---|
@@ -368,12 +452,16 @@ anything but UPDI.
 | 17 | 1 kΩ | 1 | UPDI series |
 | 18 | Fuse 2 A + SMAJ26A TVS + P-FET | 1 ea | protection |
 | 19 | Screw terminals, 2-pin | 3 | LED string outputs |
+| 20 | 3.3 V LDO (MCP1700-3302 / XC6206P332) + 2 × 1 µF | 1 | Qwiic rail — §5 |
+| 21 | BSS138 | 2 | I²C level shifter, one per line |
+| 22 | 10 kΩ ×2 (5 V side), 4.7 kΩ ×2 (3.3 V side) | 1 set | shifter pull-ups |
+| 23 | JST-SH 4-pin SMD socket | 1 | Qwiic / STEMMA QT |
 
 Electronics ≈ **₹900–1200 / $11–15** per unit, excluding LEDs and charger.
 
 ---
 
-## 8. Firmware
+## 9. Firmware
 
 **One source builds both boards.** `include/config.h` carries a `GLIM_BOARD`
 switch (1 = rev1/ATtiny814, 2 = rev2/ATtiny3216) selecting the pin map; every
@@ -409,7 +497,7 @@ Current footprint: **6 430 B of 32 768 (19.6 %)**, 137 B of 2 048 RAM (6.7 %).
 3. *Optional:* move the IR decoder to `attachInterrupt()` so IR and debug
    telemetry can run together — see §4. Purely a convenience; 32 KB affords it.
 
-## 9. Open decisions
+## 10. Open decisions
 
 | Question | Default if unanswered |
 |---|---|

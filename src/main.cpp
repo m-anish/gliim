@@ -11,7 +11,8 @@
 // Signal flow per channel:
 //   setpoint level  → slewed display level (soft transitions)
 //                   → 16-bit gamma curve (perceptually linear)
-//                   → TCA0 normal-mode single-slope PWM on PB0/PB1/PB2.
+//                   → TCA0 normal-mode single-slope PWM (WO0/WO1/WO2; see
+//                     config.h for which pins those land on per board).
 //
 // The PWM is bare-metal TCA0 rather than analogWrite() because the core can't
 // drive TCA0 in normal (16-bit) mode. 16 bits matters: the PT4115's floor is a
@@ -116,9 +117,9 @@ static uint16_t gammaHR(uint8_t lvl) {
 // duty change mid-period can't produce a runt pulse (datasheet §20.3.3.4).
 static inline void setHR(uint8_t ch, uint16_t hr) {
   switch (ch) {
-    case 0: TCA0.SINGLE.CMP0BUF = hr; break;   // PB0 / WO0
-    case 1: TCA0.SINGLE.CMP1BUF = hr; break;   // PB1 / WO1
-    case 2: TCA0.SINGLE.CMP2BUF = hr; break;   // PB2 / WO2
+    case 0: TCA0.SINGLE.CMP0BUF = hr; break;   // WO0 — LED1_PIN
+    case 1: TCA0.SINGLE.CMP1BUF = hr; break;   // WO1 — LED2_PIN
+    case 2: TCA0.SINGLE.CMP2BUF = hr; break;   // WO2 — LED3_PIN
   }
 }
 
@@ -697,6 +698,11 @@ void setup() {
 
 #if GLIM_DEBUG
   dbg.begin(115200);
+#if GLIM_DEBUG_HW_SERIAL
+  // Transmit only: USART0's RXD pin is an LED output on this board, so leaving
+  // the receiver enabled would have it interrupting on the PWM waveform.
+  USART0.CTRLB &= ~USART_RXEN_bm;
+#endif
   dbg.println(F("glim boot"));
 #endif
 

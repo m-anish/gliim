@@ -26,10 +26,13 @@
 // Pin map
 // ---------------------------------------------------------------------------
 //
-// Common to both boards: the LED channels sit on **PB0/PB1/PB2** because those
-// are TCA0's WO0/WO1/WO2 — the only waveform outputs that exist in *normal*
-// (16-bit) mode. Split mode would offer six outputs but only 8 bits, which is
-// 6.4× coarser than the PT4115 can resolve. See docs/hardware.md.
+// Common to both boards: the LED channels are driven by TCA0's WO0/WO1/WO2 — the
+// only waveform outputs that exist in *normal* (16-bit) mode. Split mode would
+// offer six outputs but only 8 bits, which is 6.4× coarser than the PT4115 can
+// resolve. See docs/hardware.md.
+//
+// *Which* pins those outputs land on differs: rev1 uses the default PB0/PB1/PB2,
+// rev2 the alternates PB3/PB4/PB5 so that I²C and the UART can have PB0-PB2.
 //
 // Also common: PA1/PA2 are the ADC pins (AIN1/AIN2) and cannot do PWM, so the
 // joystick lives there on both boards.
@@ -61,32 +64,43 @@
 // No hardware UART here: PB2 is USART0's TXD but it's LED ch3, and USART0's only
 // alternate (PA1) is the joystick. Debug bit-bangs over SoftwareSerial instead.
 #define GLIM_DEBUG_HW_SERIAL 0
+#define GLIM_I2C 0                 // no free pins for TWI0 on the 14-pin part
 #define DEBUG_TX_PIN PIN_PA4
 #define DEBUG_RX_PIN PIN_PA5
 
 #elif GLIM_BOARD == 2
 // ── rev2: ATtiny3216, 20-pin ───────────────────────────────────────────────
-// PORTC is the new space and takes the peripherals that were squeezed onto
-// PORTA on rev1. One deliberate difference from rev1: **LED ch3 uses WO2's
-// alternate pin, PB5**, rather than the default PB2.
+// All three LED channels sit on TCA0's **alternate** output pins, PB3/PB4/PB5,
+// rather than the default PB0/PB1/PB2. That is a deliberate reshuffle to fit
+// two peripherals the 14-pin rev1 could never have:
 //
-// Why: PB2 is USART0's TXD and PB3 its RXD. Freeing them buys a **real hardware
-// UART**, which rev1 could not have — and that in turn means debug telemetry no
-// longer needs SoftwareSerial, whose interrupt dispatcher collides with the IR
-// decoder's ISR. On rev2, IR and telemetry run at the same time.
+//   PB0/PB1 → TWI0 SCL/SDA — the ONLY pins I²C can reach without taking
+//             PA1/PA2 from the joystick (datasheet Table 5-1). This is what
+//             makes the Qwiic connector possible.
+//   PB2     → USART0 TXD — a real hardware UART for debug telemetry, so
+//             SoftwareSerial (whose dispatcher collides with the IR ISR) is
+//             never needed and IR stays live in debug builds.
 //
-// The relocation is one PORTMUX bit. Datasheet DS40002205A §15.3.3: TCA02
-// "select the alternative output pin for TCA0 waveform output 2" — and unlike
-// TCA03/04/05 it is *not* restricted to split mode, so it works in the 16-bit
-// normal mode we actually use.
-#define LED1_PIN   PIN_PB0   // TCA0 WO0 / CMP0  (default position)
-#define LED2_PIN   PIN_PB1   // TCA0 WO1 / CMP1  (default position)
-#define LED3_PIN   PIN_PB5   // TCA0 WO2 / CMP2  (ALTERNATE position)
-#define LED_DIR_bm (PIN0_bm | PIN1_bm | PIN5_bm)
-#define PWM_PORTMUX PORTMUX_TCA02_bm               // WO2 → PB5, freeing PB2/PB3
+// The relocation is three PORTMUX bits. DS40002205A §15.3.3 restricts only
+// TCA03/04/05 to split mode; TCA00/01/02 work in the 16-bit normal mode we use.
+//
+// Price paid: USART0's RXD is PB3, now LED ch1 — so debug serial is
+// **transmit-only**. Fine for telemetry; main.cpp clears RXEN so the receiver
+// can't sit interrupting on the PWM waveform.
+#define LED1_PIN   PIN_PB3   // TCA0 WO0 / CMP0  (alternate position)
+#define LED2_PIN   PIN_PB4   // TCA0 WO1 / CMP1  (alternate position)
+#define LED3_PIN   PIN_PB5   // TCA0 WO2 / CMP2  (alternate position)
+#define LED_DIR_bm (PIN3_bm | PIN4_bm | PIN5_bm)
+#define PWM_PORTMUX (PORTMUX_TCA00_bm | PORTMUX_TCA01_bm | PORTMUX_TCA02_bm)
 
-// IR moves to PC0 — PORTC exists on the 20-pin part, so PORTA and PORTB stay
-// clear for the input and the LEDs.
+// I²C / Qwiic. TWI0 at its default pins, free because the LEDs moved.
+//   PB0 = SCL, PB1 = SDA
+// **Qwiic is a 3.3 V standard and this board runs at 5 V** — the connector needs
+// a 3.3 V LDO and a level shifter, not a direct connection. See
+// hardware/rev2/README.md §5 before wiring one.
+#define GLIM_I2C 1
+
+// IR on PC0 — PORTC is the space the 20-pin part adds.
 #define IR_PIN       PIN_PC0
 #define IR_PORT      PORTC
 #define IR_PIN_bm    PIN0_bm
@@ -100,13 +114,12 @@
 
 #define STATUS_PIXEL_PIN PIN_PC1   // WS2812
 
-// Hardware USART0 at its default pins, free because LED ch3 moved to PB5.
-// PB2 = TXD (wire the adapter's RX here), PB3 = RXD.
+// Hardware USART0, TX only (see above). Wire the adapter's RX to PB2.
 #define GLIM_DEBUG_HW_SERIAL 1
 
-// PA3/PA4/PA5 are TCA0 WO3/WO4/WO5 — LED channels 4-6 if you ever populate the
+// PA3/PA4/PA5 are TCA0 WO3/WO4/WO5 — LED channels 4-6 if you populate the
 // expansion drivers, but only in split mode, which costs the 16-bit resolution.
-// PA6 (DAC), PB3, PB4, PB5 are free.
+// PA6 (DAC), PC2, PC3 are free.
 
 #else
 #error "GLIM_BOARD must be 1 (rev1 / ATtiny814) or 2 (rev2 / ATtiny3216)"
