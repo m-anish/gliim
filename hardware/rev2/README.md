@@ -57,7 +57,8 @@ and 25:1 at 20 kHz. Compare that against what 8-bit resolution actually delivers
 
 So resolution, not the driver, is the binding constraint — and more PWM bits
 genuinely help. On the ATtiny3216, **TCA0 in normal (16-bit) mode** drives
-`WO0/WO1/WO2` → **PB0/PB1/PB2**: exactly three channels, exactly what we need.
+`WO0/WO1/WO2` → PB0/PB1/PB2 (with WO2 relocatable to PB5): exactly three
+channels, exactly what we need.
 The ATtiny814 has the same three pins, so rev1 was rewired to match and **one
 firmware source now builds for both boards** — see §8.
 
@@ -77,10 +78,15 @@ drivers you populate:
 
 | Mode | Channels | Resolution | Pins |
 |---|---|---|---|
-| **TCA0 normal** (default) | 3 | 16-bit | PB0, PB1, PB2 |
-| TCA0 split | 6 | 8-bit | PB0–PB2 + PA3, PA4, PA5 |
+| **TCA0 normal** (default) | 3 | 16-bit | PB0, PB1, **PB5** |
+| TCA0 split | 6 | 8-bit | PB0, PB1, PB5 + PA3, PA4, PA5 |
 
-For a home dimmer, dimming *quality* beats channel count. Ship normal mode.
+For a home dimmer, dimming *quality* beats channel count — ship normal mode. The
+6-channel option and what 8-bit actually costs (less than you'd think, with
+dithering) are quantified in §4.
+
+> ch3 is on **PB5** rather than the default PB2 on rev2, which frees USART0's
+> pins for a hardware UART. See §4.
 
 > Consequence for firmware, now implemented: temporal dithering was deleted
 > (16-bit far exceeds what dithering bought at 8-bit) and gamma is computed in
@@ -106,7 +112,7 @@ For a home dimmer, dimming *quality* beats channel count. Ship normal mode.
        │    LED str 1   LED str 2    LED str 3        │ 5 V
        │       ▲           ▲            ▲             │
        │       │DIM        │DIM         │DIM          │
-       │    PB0│        PB1│         PB2│             │
+       │    PB0│        PB1│         PB5│             │
        │       └───────────┴────────────┘             │
        │                   │                          │
        │            ┌──────┴───────┐                  │
@@ -151,40 +157,81 @@ Choose SOIC-20 over VQFN-20 unless you're reflowing — it hand-solders fine.
 > what the firmware and megaTinyCore are proven on here, and the ADC is not our
 > bottleneck.
 
-### Pin map
+### Pin map — exact, SOIC-20
 
-| Pin | Function | Notes |
-|---|---|---|
-| PA0 | UPDI | 1 kΩ series to the programming header |
-| PA1 | **Input ADC** | 5-way ladder node, *or* joystick X (AIN1) |
-| PA2 | Joystick Y | (AIN2) — unused when the ladder is fitted |
-| PA3 | LED ch4 *(expansion)* | TCA0 WO3, split mode only |
-| PA4 | LED ch5 *(expansion)* | TCA0 WO4 |
-| PA5 | LED ch6 *(expansion)* | TCA0 WO5 |
-| PA6 | *free* | DAC-capable — optional analog dim reference |
-| PA7 | **Switch input** | joystick SW / ladder centre push, `INPUT_PULLUP` |
-| PB0 | **LED ch1 PWM** | TCA0 **WO0** — 16-bit in normal mode |
-| PB1 | **LED ch2 PWM** | TCA0 **WO1** |
-| PB2 | **LED ch3 PWM** | TCA0 **WO2** (also USART0 TXD default — see below) |
-| PB3 | *free* | USART0 RXD default |
-| PB4 | *free* | AIN9 |
-| PB5 | *free* | AIN8 |
-| PC0 | **IR receiver OUT** | TSOP38238 |
-| PC1 | **WS2812 data** | status pixel |
-| PC2 | Debug serial TX | SoftwareSerial, debug builds only |
-| PC3 | *free* | (debug RX placeholder) |
+Physical numbering from datasheet **DS40002205A Table 5-1** (the "SOIC 20-Pin"
+column), not inferred. Board routes all six LED channels; populate three or six.
 
-**Known conflict:** PB2 is both LED ch3 and the default USART0 TXD, and USART0's
-only PORTMUX alternate is PA1/PA2 — which the input needs. So there is **no
-hardware UART on this board either**; debug telemetry bit-bangs over
-**SoftwareSerial on PC2**, which PORTC makes free (rev1 had to borrow PA4).
+| Pin | Port | 3-channel build (default) | 6-channel build | Peripheral |
+|----:|------|---------------------------|-----------------|------------|
+| 1 | **VDD** | +5 V | +5 V | |
+| 2 | PA4 | *free* | **LED ch5** | TCA0 WO4 |
+| 3 | PA5 | *free* | **LED ch6** | TCA0 WO5 · VREFA |
+| 4 | PA6 | *free* | *free* | DAC out |
+| 5 | PA7 | **Switch** | **Switch** | joystick SW / ladder centre, `INPUT_PULLUP` |
+| 6 | PB5 | **LED ch3** | **LED ch3** | TCA0 **WO2 alternate** |
+| 7 | PB4 | *free* | *free* | AIN9 |
+| 8 | PB3 | **UART RXD** | **UART RXD** | USART0 RxD |
+| 9 | PB2 | **UART TXD** | **UART TXD** | USART0 TxD — adapter's RX here |
+| 10 | PB1 | **LED ch2** | **LED ch2** | TCA0 WO1 |
+| 11 | PB0 | **LED ch1** | **LED ch1** | TCA0 WO0 |
+| 12 | PC0 | **IR receiver** | **IR receiver** | TSOP38238 OUT |
+| 13 | PC1 | **WS2812 data** | **WS2812 data** | status pixel |
+| 14 | PC2 | *free* | *free* | |
+| 15 | PC3 | *free* | *free* | (WO3 alternate — leave clear) |
+| 16 | PA0 | **UPDI** | **UPDI** | 1 kΩ series to header |
+| 17 | PA1 | **Joystick X / ladder** | same | AIN1 |
+| 18 | PA2 | **Joystick Y** | same | AIN2 — unused with the ladder |
+| 19 | PA3 | *free* | **LED ch4** | TCA0 WO3 · EXTCLK |
+| 20 | **GND** | GND | GND | |
 
-That library routes through the core's `attachInterrupt` dispatcher, which
-defines every PORT vector, so it cannot coexist with the IR decoder's raw ISR —
-`config.h` forces `GLIM_IR` off in debug builds, exactly as on rev1. With 32 KB
-of flash there is now ample room to switch the decoder to `attachInterrupt()` if
-you ever want IR and telemetry live at the same time; NEC's 1.125 ms bit periods
-are utterly indifferent to a few µs of dispatcher latency.
+Only PA3/PA4/PA5 change role between the two builds — everything else is fixed,
+so **one PCB serves both**. Populate three drivers or six; firmware picks the mode.
+
+#### Why LED ch3 sits on PB5, not PB2
+
+PB2 is TCA0's *default* WO2 — but it is also **USART0's TXD**, and USART0's only
+alternate is PA1/PA2, which the input occupies. rev1 lost its hardware UART to
+exactly this clash.
+
+`PORTMUX.CTRLC.TCA02` relocates WO2 to **PB5**, freeing PB2/PB3 for the UART at
+its default position. Crucially, §15.3.3 restricts only TCA03/04/05 to split
+mode — **TCA00/01/02 work in normal (16-bit) mode too**, which is the mode we
+actually use. One register write buys:
+
+- a **real hardware UART** for debug telemetry, and
+- **IR and telemetry running together**, because SoftwareSerial's interrupt
+  dispatcher is no longer involved to collide with the IR ISR. On rev1 those two
+  are mutually exclusive; verified on rev2 that both link into one build.
+
+### 6 channels means 8-bit — and how much that costs
+
+You're right that six channels forces 8-bit: WO3/WO4/WO5 only exist in **split
+mode**, and split mode is two 8-bit timers. There is no 6 × 16-bit option on this
+part — it has a single TCA.
+
+| Build | Mode | Resolution | Floor | Ratio | ≈ perceived |
+|---|---|---|---|---|---|
+| **3 channels** | TCA0 normal | 16-bit | 0.061 % | **1638:1** | ~3.5 % |
+| 6 channels | TCA0 split | 8-bit | 0.391 % | 256:1 | ~8.1 % |
+| 6 channels **+ dithering** | TCA0 split | 8+2 bits | 0.098 % | **1024:1** | ~4.4 % |
+
+Straight 8-bit is **6.4× shallower** — the exact gap that motivated 16-bit in the
+first place. But temporal dithering (which glim had at 8-bit, and dropped as
+redundant once 16-bit landed) buys most of it back:
+
+- run split mode at **DIV64 = 1221 Hz**, where one count is 3.2 µs — still above
+  the PT4115's 2 µs floor, so single-count pulses remain honest;
+- dither 2 bits → **10-bit effective, 1024:1**, and the dither pattern repeats at
+  1221/4 = **305 Hz**, comfortably invisible.
+
+That lands 6-channel within **1.6×** of the 3-channel depth rather than 6.4×.
+Don't push to DIV16 (4883 Hz): one count falls to 0.8 µs, below the driver's
+minimum on-time, and the bottom of the range stops being monotonic.
+
+> **Not yet implemented.** The firmware today is normal-mode/16-bit only. A
+> 6-channel build needs the split-mode path and the dither ISR restored — both
+> existed before and are in git history. Budget ~1 KB of the 32 KB.
 
 **PORTC has no ADC** on this part (ADC reaches PA0–PA7, PB0, PB1, PB4, PB5 only).
 Keep analog inputs on PORTA.

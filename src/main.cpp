@@ -30,9 +30,15 @@
 #endif
 
 #if GLIM_DEBUG
-// Not the hardware USART: its TXD (PB2) is LED channel 3 now. See config.h.
+#if GLIM_DEBUG_HW_SERIAL
+// rev2: LED ch3 sits on WO2's alternate pin, so USART0's own pins are free.
+#define dbg Serial
+#else
+// rev1: no hardware USART (its TXD is LED ch3), so bit-bang. This is what
+// forces GLIM_IR off in rev1 debug builds — see config.h.
 #include <SoftwareSerial.h>
 static SoftwareSerial dbg(DEBUG_RX_PIN, DEBUG_TX_PIN);
+#endif
 #endif
 
 #define HR_MAX    ((uint16_t)PWM_PER)               // full-scale duty
@@ -118,7 +124,10 @@ static inline void setHR(uint8_t ch, uint16_t hr) {
 
 static void pwmInit() {
   takeOverTCA0();                                  // core stops managing TCA0
-  PORTB.DIRSET = PIN0_bm | PIN1_bm | PIN2_bm;      // WO0/WO1/WO2 as outputs
+  // Relocate any waveform outputs that don't sit at their default pin. rev1
+  // writes 0 here; rev2 moves WO2 to PB5 so USART0 can have PB2/PB3.
+  PORTMUX.CTRLC = PWM_PORTMUX;
+  PORTB.DIRSET = LED_DIR_bm;                       // WO0/WO1/WO2 as outputs
 
   TCA0.SINGLE.CTRLA = 0;                            // stop before reconfiguring
   TCA0.SINGLE.CTRLD = 0;                            // normal (not split) mode

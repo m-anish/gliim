@@ -39,6 +39,8 @@
 #define LED1_PIN   PIN_PB0   // TCA0 WO0 / CMP0
 #define LED2_PIN   PIN_PB1   // TCA0 WO1 / CMP1
 #define LED3_PIN   PIN_PB2   // TCA0 WO2 / CMP2
+#define LED_DIR_bm (PIN0_bm | PIN1_bm | PIN2_bm)   // PORTB pins the timer drives
+#define PWM_PORTMUX 0                              // all three at default position
 
 // IR on PB3 so its edge interrupt lands on PORTB_PORT_vect. PB3 is
 // interrupt-capable (synchronous only — fine, glim never sleeps while decoding).
@@ -56,18 +58,32 @@
 
 #define STATUS_PIXEL_PIN PIN_PA6   // WS2812 — plain GPIO
 
-// Debug serial: PB2 is USART0's TXD but it's LED ch3 here, and USART0's only
-// alternate (PA1) is the joystick — so there is no hardware UART on this board.
+// No hardware UART here: PB2 is USART0's TXD but it's LED ch3, and USART0's only
+// alternate (PA1) is the joystick. Debug bit-bangs over SoftwareSerial instead.
+#define GLIM_DEBUG_HW_SERIAL 0
 #define DEBUG_TX_PIN PIN_PA4
 #define DEBUG_RX_PIN PIN_PA5
 
 #elif GLIM_BOARD == 2
 // ── rev2: ATtiny3216, 20-pin ───────────────────────────────────────────────
-// Same LED pins as rev1; PORTC is the new space, and it takes the peripherals
-// that were squeezed onto PORTA before.
-#define LED1_PIN   PIN_PB0   // TCA0 WO0 / CMP0
-#define LED2_PIN   PIN_PB1   // TCA0 WO1 / CMP1
-#define LED3_PIN   PIN_PB2   // TCA0 WO2 / CMP2
+// PORTC is the new space and takes the peripherals that were squeezed onto
+// PORTA on rev1. One deliberate difference from rev1: **LED ch3 uses WO2's
+// alternate pin, PB5**, rather than the default PB2.
+//
+// Why: PB2 is USART0's TXD and PB3 its RXD. Freeing them buys a **real hardware
+// UART**, which rev1 could not have — and that in turn means debug telemetry no
+// longer needs SoftwareSerial, whose interrupt dispatcher collides with the IR
+// decoder's ISR. On rev2, IR and telemetry run at the same time.
+//
+// The relocation is one PORTMUX bit. Datasheet DS40002205A §15.3.3: TCA02
+// "select the alternative output pin for TCA0 waveform output 2" — and unlike
+// TCA03/04/05 it is *not* restricted to split mode, so it works in the 16-bit
+// normal mode we actually use.
+#define LED1_PIN   PIN_PB0   // TCA0 WO0 / CMP0  (default position)
+#define LED2_PIN   PIN_PB1   // TCA0 WO1 / CMP1  (default position)
+#define LED3_PIN   PIN_PB5   // TCA0 WO2 / CMP2  (ALTERNATE position)
+#define LED_DIR_bm (PIN0_bm | PIN1_bm | PIN5_bm)
+#define PWM_PORTMUX PORTMUX_TCA02_bm               // WO2 → PB5, freeing PB2/PB3
 
 // IR moves to PC0 — PORTC exists on the 20-pin part, so PORTA and PORTB stay
 // clear for the input and the LEDs.
@@ -84,10 +100,9 @@
 
 #define STATUS_PIXEL_PIN PIN_PC1   // WS2812
 
-// Still no hardware UART: PB2 is USART0 TXD (LED ch3) and its alternate is PA1
-// (the input). Debug bit-bangs on PORTC, which rev1 didn't have spare.
-#define DEBUG_TX_PIN PIN_PC2
-#define DEBUG_RX_PIN PIN_PC3
+// Hardware USART0 at its default pins, free because LED ch3 moved to PB5.
+// PB2 = TXD (wire the adapter's RX here), PB3 = RXD.
+#define GLIM_DEBUG_HW_SERIAL 1
 
 // PA3/PA4/PA5 are TCA0 WO3/WO4/WO5 — LED channels 4-6 if you ever populate the
 // expansion drivers, but only in split mode, which costs the 16-bit resolution.
@@ -309,10 +324,13 @@
 
 // SoftwareSerial routes through the core's attachInterrupt dispatcher, which
 // defines every PORT interrupt vector — so it cannot coexist with the IR
-// decoder's own raw ISR, on any port. They're mutually exclusive by nature, and
-// that's fine: debug builds exist for joystick calibration, where you don't need
-// the remote. Production builds (GLIM_DEBUG=0) keep IR.
-#if GLIM_DEBUG && GLIM_IR
+// decoder's own raw ISR, on any port. That forces the two apart on **rev1**,
+// which is tolerable: debug builds exist for joystick calibration, where the
+// remote isn't needed.
+//
+// **rev2 has no such conflict** — it uses the real USART0, so IR stays enabled
+// even in debug builds.
+#if GLIM_DEBUG && !GLIM_DEBUG_HW_SERIAL && GLIM_IR
 #undef GLIM_IR
 #define GLIM_IR 0
 #endif
