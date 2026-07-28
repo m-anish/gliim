@@ -309,6 +309,47 @@ converter" module works too if you'd rather not place the discretes.
 > are 5 V tolerant with on-board regulators — but *many* is not *all*. Build the
 > shifter and the question never arises.
 
+### "Why not just run the whole board at 3.3 V?"
+
+Reasonable question — it would make Qwiic native and delete the LDO and shifter
+entirely. **The joystick is not the obstacle:** it is two 10 kΩ pots and a
+switch, entirely passive, and the ADC is *ratiometric* (the pot divides V_DD and
+the ADC references V_DD), so it returns **identical counts at 3.3 V and 5 V**.
+No recalibration, no code change, no lost resolution. Same for the 5-way ladder.
+The PT4115 is fine too — `V_DIM_H` is 2.5 V, so 3.3 V logic clears it — and the
+TSOP38238 runs from 2.5 V.
+
+Two other things do object:
+
+**1. The clock halves.** Table 36-3 / Figure 36-1: 20 MHz needs **V_DD ≥ 4.5 V**.
+Max frequency is linear from 10 MHz at 2.7 V to 20 MHz at 4.5 V, so 3.3 V allows
+~13.3 MHz — and the highest *available* internal option below that is **10 MHz**
+(16 MHz would need ~3.8 V). PWM is `F_CPU/65536`, so:
+
+| Rail | Clock | PWM | Floor | Ratio |
+|---|---|---|---|---|
+| **5.0 V** | 20 MHz | **305 Hz** | 40 counts | 1638:1 |
+| 3.3 V | 10 MHz | 152 Hz | 20 counts | **3277:1** |
+
+Note the trade isn't all one way — the longer period means the driver's fixed
+2 µs floor is a *smaller* fraction, so 3.3 V actually dims **twice as deep**. What
+you give up is flicker margin: 152 Hz is above flicker fusion, but stroboscopic
+artifacts (a waving hand, a phone camera) get noticeably more visible.
+
+**2. The WS2812 doesn't like it.** Its V_DD spec is ~3.5–5.3 V, so 3.3 V is
+*below* spec; and powering it at 5 V instead doesn't help, because DIN then needs
+0.7 × 5 = 3.5 V, which 3.3 V logic can't guarantee. You'd need a level shifter on
+the data line — trading one shifter for another.
+
+**Recommendation: stay at 5 V.** The Qwiic sub-circuit is seven standard parts
+and ~₹40 for a solved problem, against giving up half the flicker margin and
+re-solving the status pixel.
+
+> **But it's a real option if you want it.** Swap the WS2812 for a plain bicolor
+> LED (works at any rail, two resistors) and accept 152 Hz, and 3.3 V becomes
+> clean: no LDO, no shifter, native Qwiic, and *deeper* dimming into the bargain.
+> That is a defensible board — just a different one.
+
 ### What it's for
 
 An I²C port turns several roadmap items into plug-in modules rather than board
