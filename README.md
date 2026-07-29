@@ -1,7 +1,7 @@
 # glim
 
 ![status](https://img.shields.io/badge/status-rev2%20planning-orange)
-![mcu](https://img.shields.io/badge/MCU-ATtiny3216-323330)
+![mcu](https://img.shields.io/badge/MCU-ATtiny3226-323330)
 ![driver](https://img.shields.io/badge/LED%20driver-PT4115-fbb034)
 ![bus](https://img.shields.io/badge/bus-RS--485-6e5494)
 ![core](https://img.shields.io/badge/core-megaTinyCore-00979d)
@@ -58,8 +58,7 @@ intact, plus the six hard-won findings worth carrying forward.
 
 | Part | Role |
 |------|------|
-| ATtiny3216 | driver node — 3× 16-bit PWM, RS-485, IR, I²C, status LED |
-| ATtiny1616 | control panel — 3× EC11, RS-485 |
+| ATtiny3226 | both node types — **two USARTs**, so RS-485 and HC-12 can both be live |
 | 3× PT4115 | buck LED drivers, one per channel (up to ~5 LEDs each) |
 | RS-485 auto-flow module | MAX485 + TVS, auto-direction, one per node (~₹31) |
 | HC-12 (optional) | same footprint choice — 433 MHz drop-in where cable can't reach |

@@ -36,7 +36,7 @@ of it disappears.
                     │                                                        │
    ┌────────────────┴─────┐   ┌──────────────────┐   ┌────────────────────┐ │
    │  DRIVER NODE          │   │  CONTROL PANEL   │   │  CONTROL PANEL     │ │
-   │  ATtiny3216           │   │  ATtiny1616      │   │  ATtiny1616        │ │
+   │  ATtiny3226           │   │  ATtiny3226      │   │  ATtiny3226        │ │
    │  3 × PT4115 + PWM     │   │  3 × EC11        │   │  3 × EC11          │ │
    │  20 V LED rail        │   │  bus-powered     │   │  bus-powered       │ │
    └───────────────────────┘   └──────────────────┘   └────────────────────┘ │
@@ -884,50 +884,131 @@ a bus it gains a second job — showing link state.
 
 ---
 
-## 8. Pin budgets
+## 8. Pin budgets — ATtiny3226
 
-### Driver node — ATtiny3216, 18 I/O
+**Settled on the ATtiny3226** (tinyAVR 2-series, 20-pin SOIC, 32 KB flash,
+**3 KB SRAM**, 18 I/O). Two hardware USARTs mean RS-485 and HC-12 can both be
+live with no AND gate, no co-processor and no jumper.
 
-USART0's default pins (PB2/PB3) are needed for RS-485, so WO2 moves to its
-alternate (PB5) and WO0/WO1 stay at PB0/PB1. TWI0 moves to its **alternate**
-PA1/PA2 — free now that the joystick is gone.
+Every route below was read out of `iotn3226.h`, not assumed:
+
+| Peripheral | Default | Alternate |
+|---|---|---|
+| USART0 | **PB2 TXD / PB3 RXD** | PA1 / PA2 |
+| USART1 | PA1 / PA2 | **PC2 TXD / PC1 RXD** (+XCK PC0, XDIR PC3) |
+| TWI0 | PB0 SCL / PB1 SDA | **PA1 SDA / PA2 SCL** |
+| TCA0 WO0 | **PB0** | PB3 |
+| TCA0 WO1 | **PB1** | PB4 |
+| TCA0 WO2 | PB2 | **PB5** |
+
+The unlock is **USART1's alternate sitting entirely on PORTC** — it keeps the
+second UART away from PORTB, where the LEDs and USART0 live.
+
+### Driver node
 
 | Pin | Function |
 |---|---|
 | PA0 | UPDI |
 | PA1 / PA2 | I²C SDA / SCL (TWI0 **alt**) → Qwiic |
-| PA3 / PA4 / PA5 | free — LED ch4–6 footprints, *or* one local EC11 |
-| PA6 / PA7 | free |
-| PB0 / PB1 | **LED ch1 / ch2** (TCA0 WO0 / WO1) |
-| PB2 / PB3 | **RS-485 TXD / RXD** (USART0) |
-| PB4 | **RS-485 DE+/RE** (tied) |
-| PB5 | **LED ch3** (TCA0 WO2 **alt**) |
-| PC0 | IR receiver |
-| PC1 | Status LED |
-| PC2 | Qwiic 3V3 enable |
-| PC3 | free |
+| PA3 / PA4 / PA5 | free — one local EC11, or LED ch4–6 footprints |
+| PA6 | free (DAC-capable) |
+| PA7 | Qwiic 3V3 enable |
+| PB0 | **LED ch1** — TCA0 WO0, default |
+| PB1 | **LED ch2** — TCA0 WO1, default |
+| PB2 / PB3 | **RS-485 TXD / RXD** — USART0 default |
+| PB4 | IR receiver (`PORTB_PORT_vect`) |
+| PB5 | **LED ch3** — TCA0 WO2, **ALT1** |
+| PC0 | HC-12 `SET` |
+| PC1 / PC2 | **HC-12 RXD / TXD** — USART1 **ALT1** |
+| PC3 | Status LED |
 
-Comfortable, with room for a local encoder and the Qwiic port intact.
+14 assigned, **4 free**. Note ch3 *must* take WO2's alternate PB5, because WO2's
+default PB2 is USART0's TXD.
 
-### Control panel — ATtiny1616 (or 3216), 18 I/O
+### Control panel
 
-| Pins | Function |
+| Pin | Function |
 |---|---|
-| 9 | 3 × EC11 (A, B, SW each) |
-| 3 | RS-485 TXD / RXD / DE |
-| 1 | Status LED |
-| 1 | UPDI |
-| **14 of 18** | 4 spare — a fourth encoder needs 3 of them |
+| PA0 | UPDI |
+| PA1 / PA2 | encoder 1 A / B |
+| PA3 / PA4 | encoder 2 A / B |
+| PA5 / PA6 | encoder 3 A / B |
+| PA7 | encoder 1 switch |
+| PB0 / PB1 | encoder 2 / 3 switches |
+| PB2 / PB3 | **RS-485 TXD / RXD** — USART0 default |
+| PB4 | HC-12 `SET` |
+| PB5 | free — 4th encoder, or a ladder for the switches |
+| PC0 | **IR receiver** (`PORTC_PORT_vect`) — see §9a |
+| PC1 / PC2 | **HC-12 RXD / TXD** — USART1 **ALT1** |
+| PC3 | Status LED |
 
-A 4-encoder panel fits at 17/18. If it gets tight, put the encoder *buttons* on a
-resistor ladder — that analysis is already done in `hardware/input.md` §2 and
-recovers 2 pins per 3 buttons.
+17 of 18. The encoder A/B lines need no interrupt capability because §4 polls
+them from a timer ISR, so they can sit anywhere. IR gets PORTC to itself — the
+other PORTC pins are USART or an output, so `PORTC_PORT_vect` fires only for IR.
 
-Panels need no ADC, no PWM and little flash, so **ATtiny1614** (14-pin) also
-works for a 2-encoder panel and is cheaper. Using the **same ATtiny3216
-everywhere** is worth considering purely for BOM and toolchain simplicity.
+### What changes in firmware, moving 3216 → 3226
 
----
+| | 1-series (3216) | 2-series (3226) |
+|---|---|---|
+| TCA0 port mux | `PORTMUX.CTRLC` | **`PORTMUX.TCAROUTEA`** — same per-channel bits |
+| USART port mux | `PORTMUX.CTRLB` | **`PORTMUX.USARTROUTEA`** |
+| `millis()` timer | TCD0 | **TCB** — the 2-series has no TCD0 |
+| SRAM | 2 KB | 3 KB |
+| ADC | 10-bit | 12-bit with PGA, different registers |
+
+**TCA0 is unaffected where it matters.** Normal (16-bit) mode is present, the
+port mux is still **per output channel** rather than per port, and `millis()`
+lands on a TCB — so `takeOverTCA0()` still works and the entire PWM engine,
+gamma curve and floor arithmetic carry over unchanged. The ADC change only
+matters if you use a resistor ladder for the panel switches.
+
+## 9a. The remote: IR or RF?
+
+The pivot shrank this question. When glim was one box with one joystick, a remote
+was the only way to reach it from across the room. **Now there are knobs on
+walls.** What is actually left for a remote is: operating from a seat, a master-off
+by the door, and guests.
+
+### The decisive point is not the medium, it is the control surface
+
+**Buttons are the wrong control for dimming.** The whole pivot was that a knob
+per channel has no mode. A four-button keyfob reintroduces exactly what we
+deleted — *which channel is this button on? do I hold it to dim? what is selected
+right now?* — and does it on a device with no display and no feedback.
+
+That splits the answer cleanly:
+
+| Want | Right answer |
+|---|---|
+| **Dim from a seat** | A **portable panel** — battery + HC-12 + the same knobs. Same firmware, same protocol, no line of sight, correct control surface. |
+| **Discrete actions** (all off, all on, one scene) | Buttons are genuinely correct here — discrete actions have no mode problem. IR or a cheap RF fob both work. |
+
+### If you want buttons, IR beats a separate RF remote here
+
+| | IR | 433 MHz RF fob (EV1527 class) |
+|---|---|---|
+| Cost | ~₹30 receiver, remotes everywhere | ~₹100–150 fob + receiver |
+| Pins | **1** | 1 (ASK+decoder) |
+| Firmware | **already written** — NEC decode + learn mode, from rev1 | new |
+| Line of sight | required, ~5–8 m | not required, 30–100 m |
+| **Band conflict with HC-12** | none | **yes — HC-12 is also 433 MHz.** Fobs sit at 433.92; you would have to move HC-12 up its channel list. |
+| Interference | sunlight, CFLs | a band full of car remotes and doorbells |
+
+**The obvious objection to IR is placement** — driver nodes live near the lights,
+in ceilings or inside fixtures, where no line of sight exists. That objection
+dissolves once you notice **the IR receiver belongs on a panel, not on a driver
+node.** Panels are on walls at eye level, which is exactly where IR works, and a
+panel is already a bus node — so it relays to *every* driver on the system.
+§8 puts IR on the panel's PC0 for this reason.
+
+That also turns IR's line-of-sight requirement into something closer to a
+feature: pointing at a panel is unambiguous about which room you mean.
+
+**Recommendation:** keep IR, on the panels. It is one pin, ~₹30, and the decode
+and learn-mode code already exists and is proven. Skip the separate RF remote —
+it costs more, collides with HC-12's band, and duplicates what the bus already
+does. If you later want a proper handheld dimmer, build a **portable panel**
+rather than a keyfob; it reuses everything and it has knobs.
 
 ## 9. Parts (new to this design)
 
@@ -960,9 +1041,9 @@ everywhere** is worth considering purely for BOM and toolchain simplicity.
 | **Isolation** | Only needed if panels sit on different mains circuits. Costs ~₹200/node. |
 | **Module or bare IC?** | Settled: HW-0519-class auto-flow module, ~₹31. TVS included, termination jumper-disabled, one fewer GPIO. Move to a bare slew-limited fail-safe IC only if EMI or a higher baud rate ever justifies it. |
 | **Wired or RF per node** | Deferred to build time by fitting both footprints. Decide per install; a bridge node lets the two coexist. |
-| **ATtiny3216 or 3226?** | The 2-series **3226** has two USARTs and 3 KB SRAM in the same 20-pin package — it makes wired+wireless-at-once trivial and costs nothing extra. Check local price and stock, and confirm USART1's pins fit §8. Leaning 3226. |
+| **ATtiny3226 price/stock** | Settled on the 3226 and the pin map in §8 is verified against `iotn3226.h`. The one open item is local price and availability versus the 3216. |
 | **Zone count** | 16 is almost certainly plenty for one hall. |
-| **Does the driver keep IR?** | It is 1 pin and already written. Probably yes, as a per-node override. |
+| **Does the driver keep IR?** | Resolved in §9a: IR belongs on the **panels**, not the driver nodes — panels are at eye level and relay to every driver. |
 | **Panel power** | **12 V down the pair → 5 V linear regulator on the panel.** Keeps the MAX485 module in spec and puts no switcher near the data pair. ~0.2 W in the regulator. |
 
 ---
