@@ -618,7 +618,9 @@ it cuts the burst.
 |---|---|---|
 | **10 kΩ pulldown** per LED channel | main, pins 6/10/11 | The PT4115 pulls DIM up internally through 200 kΩ. MCU pins are high-Z from power-on until firmware runs, so **without this every light blasts at 100 % on every power cycle**, before any code executes. |
 | **10 kΩ pull-up on UART TXD** | both, pin 9 | The RS-485 auto-flow module keys its driver by sniffing TXD. A floating TXD during the MCU's boot window can **assert the driver and jam the whole bus**. Holds it idle-high until firmware takes over. |
-| **10 kΩ pull-up on HC-12 `SET`** | RF builds | Floating `SET` can dip into AT mode on noise, where the radio silently stops forwarding. See §3a. |
+| **10 kΩ pull-up on HC-12 `SET`** | RF builds | Floating `SET` can dip into AT mode on noise, where the radio silently stops forwarding. See §3a. **Pull up to the *switched* HC-12 rail, not the always-on +5 V** — otherwise, with the module's power jumper removed, the pull-up feeds current into its `SET` pin through the ESD diode and parasitically part-powers it. |
+| **PPTC ~200 mA** in series with `V_BUS` to the jacks | main board | A reversed or damaged lead shorts `V_BUS` to GND through the cable. Without a fuse that short is limited only by the PD supply's 3 A. |
+| **330 Ω series on WS2812 `DIN` + 100 nF at the LED** | both | Easy to omit because the part "works" without them; the resistor damps the data edge and the cap holds the LED's rail through colour changes. |
 | **330 Ω series + 100 nF** at each WS2812 | main pin 15, panel pin 13 | Damps the data edge and holds the LED's rail steady through colour changes. |
 | **1 kΩ series** on UPDI | both, pin 16 | Standard serialUPDI wiring. |
 | **100 nF + 10 µF** | both, pin 1 | Decoupling. |
