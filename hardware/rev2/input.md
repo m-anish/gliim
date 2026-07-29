@@ -227,7 +227,74 @@ Add 3–4 m of high-impedance analog wiring next to three switching regulators a
 the noise is on top of that. (The push-*switches* parallel perfectly, for what
 it's worth — they're just contacts to GND.)
 
-### Do this instead: a 5-way ladder at the far end
+### Best answer: one ladder on the PCB, switch contacts wired out
+
+Keep **all four resistors on the board** and run the *switch contacts* to the
+remote. Both 5-way switches then hang off the same four resistors, in parallel:
+
+```
+                       5 V
+                        │
+                       │R│ 4.7k        (one pull-up, one set of resistors)
+                        │
+   PA1 ●────────────────●────┬──────┬──────┬──────┐
+   (AIN1)               │   │R│    │R│    │R│    │R│
+                      ═╪═   470    1k0    2k2    4k7
+                      100n   │      │      │      │
+                        │    ●──────●──────●──────●──── on-board 5-way switch
+                        │    │      │      │      │           common → GND
+                        │    │      │      │      │
+                        │    └──────┴──────┴──────┴──►  4 wires, 3-4 m
+                        │                                to remote 5-way switch
+   PA7 ●────────────────┼───────────────────────────►  push  (+ its common)
+   GND ●────────────────┴───────────────────────────►  GND
+```
+
+**Six wires** (4 directions + push + GND) and — the point — **zero components at
+the remote end.** It's a bare switch on a cable.
+
+This is better than putting a second ladder out there, and not only for the parts
+count. It fixes the one real defect of the shared-node scheme:
+
+| Both units press the same direction | reads | decodes as |
+|---|---|---|
+| ladder at each end — two R_UP in **parallel**, 235 Ω | 49 | ✗ ignored |
+| **one ladder, both switches short the same R_UP**, 470 Ω | 93 | ✓ **UP** |
+
+With the resistors shared there is nothing to parallel — two switches closing on
+one resistor is electrically identical to one switch closing on it. Different
+directions from the two units behave exactly like an on-board diagonal, which
+§2.4 already handles. And with a single set of resistors there is no tolerance
+mismatch between units to worry about.
+
+It also scales: a third or fourth control point just parallels onto the *same*
+four wires.
+
+#### The one thing to watch: a shorted direction wire
+
+That is the price of running switch contacts instead of a divided node. Compare
+cable faults:
+
+| Fault | Ladder at each end (1 signal wire) | Switches on a cable (4 signal wires) |
+|---|---|---|
+| open | 1023 → idle ✓ | that direction stops working ✓ |
+| short to GND | 0 → ignored ✓ | **that direction reads pressed forever** |
+| short to V_DD | 1023 → idle ✓ | that direction stops working ✓ |
+
+The shared-node scheme is inherently fail-safe — every cable fault lands outside
+every window. The switch-wire scheme has one failure that looks like a stuck
+button: brightness ramps to a rail and stays, or the channel keeps advancing.
+
+**Neutralise it in firmware, not hardware.** A direction held continuously for
+more than ~30 s is not a person; latch it out and ignore that direction until it
+reads idle again. Ten lines, and the failure becomes "one direction stops
+working" — the same as an open circuit.
+
+### Alternative: a second ladder at the far end
+
+Fewer wires, if that matters more than the above.
+
+
 
 The resistor ladder (§2) has exactly the property the pot lacks: **it idles as an
 open circuit.** An untouched ladder contributes *nothing* to the node, so two of
@@ -251,7 +318,9 @@ them can share one ADC pin and simply OR together.
 ```
 
 **Three wires to the remote unit: the ADC node, the centre-push line, and GND.**
-No supply needed at the far end — the pull-up lives on the board.
+No supply needed at the far end — the pull-up lives on the board. In exchange the
+remote needs its own four 1 % resistors, and simultaneous same-direction presses
+misread (see the table above).
 
 Verified against the §2.3 decode windows:
 
@@ -266,12 +335,9 @@ cause a misread. A pot's exact value *is* the control signal, so every millivolt
 of pickup is an error. Keep the 100 nF at the MCU end, and run the ADC node
 twisted with GND.
 
-**The one caveat:** if someone presses a direction on *both* units at the same
-instant, the two resistors parallel and the reading lands somewhere else — most
-combinations fall outside every window and are safely ignored, but a few
-(e.g. RIGHT+RIGHT) decode as a different direction. Two people operating one
-fixture in the same 20 ms is not a scenario worth engineering around; if it
-bothers you, use the separate-pin variant below.
+Every cable fault on that single wire — open, short to GND, short to V_DD —
+lands outside every decode window or reads as idle, so this variant is inherently
+fail-safe. That is its real advantage over the switch-wire scheme.
 
 ### If you want zero interaction
 
@@ -288,7 +354,9 @@ can tell the two units apart in firmware if you ever want to. The cost is the
 
 ### Either way, for a 3–4 m run
 
-- **Twisted pair or shielded**, ADC node paired with GND.
+- **CAT5/CAT6 is ideal** for the switch-wire version — eight conductors, twisted,
+  cheap, and you can give the return its own pair.
+- **Twisted pair or shielded**, signal lines paired with GND.
 - **100 nF** at the MCU end (already in the §2.1/§2.3 design).
 - A **220 Ω series resistor** at the connector on the ADC and push lines — cheap
   ESD/transient protection for a cable leaving the enclosure. It adds to the
