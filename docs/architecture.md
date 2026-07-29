@@ -879,8 +879,10 @@ Worth stating, because it is most of the UI complexity:
   second-control-point analysis** — superseded by panels on a bus. That work is
   in [`../deprecated/`](../deprecated/) and in `hardware/input.md`.
 
-The status LED survives, meaning what it already means: *this node is alive*. On
-a bus it gains a second job — showing link state.
+The status LED survives, and the bus gives it a real second job: **link state**.
+That also justifies bringing back the WS2812 that rev1 dropped — colour now
+encodes something nothing else can show (peers seen, CRC errors, cable suspect),
+rather than duplicating what the channels already say themselves.
 
 ---
 
@@ -1046,7 +1048,7 @@ rather than a keyfob; it reuses everything and it has knobs.
 
 | Question | Notes |
 |---|---|
-| **Do panels display level?** | If yes they need an indicator per encoder (a small LED, or an LED ring) and must listen to `LEVELS` beacons. If no, panels are write-only and the protocol gets simpler. **Decide this first — it changes the panel BOM and half the protocol.** |
+| **Do panels display level?** | The hardware objection is gone: a WS2812 **chain** costs one pin regardless of length, so per-encoder indicators are now nearly free (see `hardware/pinout.md`). What remains is the protocol half — panels would have to listen to `LEVELS` beacons rather than being write-only. Keep chains ≤4 LEDs so bit-banging cannot overrun the UART. |
 | **Bus speed** | 115200 is safe on twisted pair. Drop to 19200–38400 on untwisted cable — nothing here is throughput-bound. |
 | **Free-running vs polled** | Free-running, per the collision numbers in §6.3. Polled stays an easy retrofit (~9.5 ms cycle at 6 nodes) if you want determinism during bring-up. |
 | **Isolation** | Only needed if panels sit on different mains circuits. Costs ~₹200/node. |

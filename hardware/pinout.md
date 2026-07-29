@@ -41,7 +41,7 @@ EC11s need, while keeping 3 LED channels and **both** transports live.
 | **12** | PC0 | encoder 3 `SW` | |
 | **13** | PC1 | **HC-12 RXD** | USART1 **ALT1** |
 | **14** | PC2 | **HC-12 TXD** | USART1 **ALT1** |
-| **15** | PC3 | Status LED | + series resistor |
+| **15** | PC3 | **WS2812 DIN** | status/link. 100 nF at the LED, 330 Ω in series |
 | **16** | PA0 | **UPDI** | 1 kΩ series to the programming pad |
 | **17** | PA1 | encoder 1 `A` | |
 | **18** | PA2 | encoder 1 `B` | |
@@ -68,29 +68,67 @@ pins differ, because PB5 is LED ch3 here.
 | **IR on the main board** | Already the plan: §9a puts IR on panels, at eye level, where it relays to every driver. A driver node in a ceiling can't see a remote anyway. |
 | **HC-12 `SET` pin** | Tie it high. Channel, baud and TX power are set-once on a bench jig; nothing changes them at runtime. |
 
-### ⚠ Zero spare pins
+### ⚠ Zero spare pins — and why the WS2812 is the pressure valve
 
-Every usable pin is committed. A first-revision board with no margin is how
-respins happen — the classic sequence is "I just need one more pin for a
-mode/test/indicator line." Two ways to buy margin back:
+Every usable pin is committed. Normally that is how respins happen, because the
+next thing you want is always "one more pin for an indicator."
 
-**Ladder variant — switches on one ADC pin.** Put the three encoder switches on a
-resistor ladder into **PA7 (AIN7)** instead of three GPIOs. That is 7 pins for
-three encoders instead of 9, and it lets you keep I²C:
+**The WS2812 is exactly what defuses that.** It is addressable, so **one data pin
+drives a chain of them.** Extra indicators no longer cost pins:
 
-| | 3 encoders on GPIO | 3 encoders, ladder switches |
+| Chain position | Shows |
+|---|---|
+| 1 | system + link state (see below) |
+| 2–4 | per-channel level or on/off, if you want it |
+
+So the board has no spare *pins*, but it does have spare *output capability* —
+which is what the spare pins would mostly have been spent on. Genuine spare GPIO
+is only recoverable by populating fewer encoders; the footprints cost nothing
+left unpopulated.
+
+### Why a WS2812 makes sense now, when it did not before
+
+rev1 had one and the design deliberately dropped it for a plain LED, because the
+only thing it was encoding — which channel is selected — was better said by the
+channels themselves.
+
+**The bus changed that.** Link state is new information that nothing else can
+show, and it is exactly what you need during install and when something is wrong:
+
+| Colour | Meaning |
+|---|---|
+| green, steady | alive, peers seen recently |
+| green, brief flash | frame sent / received |
+| amber | no peer heard for N seconds |
+| red | CRC errors above threshold — suspect cable |
+
+That last one turns the *"measure rather than guess"* advice about cheap cable
+into something visible on the wall, with no scope and no serial console.
+
+### ⚠ WS2812 timing vs the UART
+
+Driving a WS2812 means **bit-banging with interrupts disabled** — 30 µs per LED
+(24 bits at 800 kHz). That is fine here, but it has a ceiling:
+
+- **TCA0 PWM is unaffected** — it is hardware, and does not care about interrupts.
+- `millis()` on TCB just services a pending interrupt late; no ticks are lost.
+- The 1 kHz encoder poll shifts by 30 µs out of 1000. Irrelevant.
+- **The USART is the binding constraint.** At 115200 a byte is 87 µs, and
+  `RXDATA` + the shift register buffer two — so about **174 µs** of tolerance.
+
+| Chain | Blocking | |
 |---|---|---|
-| Encoder pins | 9 | **7** |
-| I²C / Qwiic | impossible | **PA1 / PA2** |
-| Spare | 0 | 0 (with I²C) or **2** (without) |
+| 1 LED | 30 µs | fine |
+| 4 LEDs | 120 µs | fine |
+| 6+ LEDs | 180 µs+ | **RX overrun risk** |
 
-The ladder analysis is in [`input.md`](input.md) §2. Two caveats: the 2-series ADC
-is 12-bit with a PGA and different registers, so that decode needs porting; and a
-ladder cannot resolve two switches pressed at once — irrelevant here, since nobody
-presses two knobs simultaneously.
+**Keep the chain to 4 or fewer**, or drop the baud rate, or defer updates to idle.
+Use megaTinyCore's bundled **`tinyNeoPixel_Static`** (no malloc, and its timing is
+already tuned for 20 MHz).
 
-**Or populate fewer encoders.** Two encoders on GPIO leaves 3 spare. The
-footprints cost nothing unpopulated.
+At **5 V** the WS2812B's DIN threshold of 0.7 × VDD = 3.5 V is met directly by the
+MCU output — which is precisely why this is possible now and was not at 3.3 V.
+Budget ~1 mA quiescent per LED even when dark; the controller IC never sleeps.
 
 ### Do you actually want three encoders here?
 
@@ -123,7 +161,7 @@ one fitted there is no bus contention and the RX select jumper is unnecessary.
 | **10** | PB1 | HC-12 `SET` | unused in the RS-485 build |
 | **11** | PB0 | *free* | |
 | **12** | PC0 | **IR receiver** | `PORTC_PORT_vect` — see §9a of architecture.md |
-| **13** | PC1 | Status LED | + series resistor |
+| **13** | PC1 | **WS2812 DIN** | status/link. 100 nF at the LED, 330 Ω in series |
 | **14** | PC2 | *free* | |
 | **15** | PC3 | *free* | |
 | **16** | PA0 | **UPDI** | 1 kΩ series to the programming pad |
@@ -160,6 +198,7 @@ pinout, same variant, and a panel needs nowhere near 32 KB.
 |---|---|---|
 | **10 kΩ pulldown** per LED channel | main, pins 6/10/11 | The PT4115 pulls DIM up internally through 200 kΩ. MCU pins are high-Z from power-on until firmware runs, so **without this every light blasts at 100 % on every power cycle**, before any code executes. |
 | **10 kΩ pull-up on UART TXD** | both, pin 9 | The RS-485 auto-flow module keys its driver by sniffing TXD. A floating TXD during the MCU's boot window can **assert the driver and jam the whole bus**. Holds it idle-high until firmware takes over. |
+| **330 Ω series + 100 nF** at each WS2812 | main pin 15, panel pin 13 | Damps the data edge and holds the LED's rail steady through colour changes. |
 | **1 kΩ series** on UPDI | both, pin 16 | Standard serialUPDI wiring. |
 | **100 nF + 10 µF** | both, pin 1 | Decoupling. |
 | **Series Schottky** on the panel's +12 V in | panel | A miswired cable then means "does not power up", not a dead board. |
