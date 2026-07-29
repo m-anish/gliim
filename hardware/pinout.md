@@ -192,7 +192,84 @@ pinout, same variant, and a panel needs nowhere near 32 KB.
 
 ---
 
-## 3. External parts that are not optional
+## 3. Wiring an EC11 encoder
+
+The EC11 has five contacts plus a shell. Every one is a plain mechanical short —
+there is no active circuitry inside — so **all three signals are active-low** and
+all three need pull-ups.
+
+| EC11 pin | Goes to |
+|---|---|
+| **A** | MCU encoder `A` pin |
+| **B** | MCU encoder `B` pin |
+| **C** | **GND** — the common for A and B |
+| **D** | **GND** — switch, non-polarised |
+| **E** | MCU encoder `SW` pin |
+| **O** | **GND** — metal shell / mounting tabs |
+
+Per encoder, ×3 on each board:
+
+```
+                    VDD
+                     │
+            ┌────────┼────────┐
+           10k      10k      10k
+            │        │        │
+   A ───────┴──┬──── ┴──┬──── ┴──┬─────── E  (switch)
+              10n      10n      100n
+               │        │        │
+              GND      GND      GND
+            (to MCU) (to MCU) (to MCU)
+
+   C ── GND        D ── GND        O(shell) ── GND
+```
+
+**Pull-ups: fit external 10 kΩ, do not rely on the internal ones.** The ATtiny's
+internal pull-ups are 20–50 kΩ and only loosely specified, which leaves the RC
+time constant undefined and the line soft against noise pickup on a panel that
+fingers touch.
+
+**Caps: 10 nF on A and B, 100 nF on the switch.**
+
+| | τ | Rise to threshold | Verdict |
+|---|---|---|---|
+| 10 kΩ + **10 nF** | 100 µs | ~90 µs | **use on A/B** |
+| 10 kΩ + **100 nF** | 1 ms | ~900 µs | too slow for A/B; **right for the switch** |
+
+At a fast spin (~3 rev/s, 60 detents/s) quadrature edges arrive every **~4.2 ms**,
+so a 90 µs rise is ~2 % of the interval — invisible. A 100 nF cap would eat ~20 %
+of it and visibly round the waveform. The switch has no such constraint and
+benefits from the longer constant.
+
+**Optional 1 kΩ in series** between each contact node and the MCU pin. It limits
+the capacitor's discharge current through the contact to ~5 mA, which helps
+contact life, and adds a little ESD margin. Worth fitting on panels; skip it on a
+main board where the encoder sits on the same PCB.
+
+**Ground the shell (`O`).** It shields the contacts and gives ESD from a user's
+fingers a path that is not through the MCU.
+
+### How this meets the firmware
+
+Hardware debounce here is belt-and-braces, not the primary mechanism. The
+decoder samples A/B from a **~1 kHz timer ISR** and runs a 4-state quadrature
+machine, which rejects bounce structurally. That sampling rate tracks up to
+**~125 detents/s (≈6 rev/s)** before aliasing — roughly 2× the fastest a hand
+manages. If you find counts dropping on a hard flick, raise the ISR to 2 kHz
+before touching the RC.
+
+Two things to leave configurable rather than hard-code:
+
+- **Direction.** Whether clockwise counts up depends only on which contact landed
+  on `A` versus `B`. Swap in the lookup table, not in copper.
+- **Counts per detent.** EC11 variants differ — some rest with one full quadrature
+  cycle per detent, others give two. If one click moves brightness two steps,
+  divide by two. Check your part's *pulses per revolution* against its *detents
+  per revolution* and make the divisor a `config.h` constant.
+
+---
+
+## 4. External parts that are not optional
 
 | Part | Where | Why |
 |---|---|---|
@@ -206,7 +283,7 @@ pinout, same variant, and a panel needs nowhere near 32 KB.
 
 ---
 
-## 4. Firmware deltas between the two parts
+## 5. Firmware deltas between the two parts
 
 Same source, two targets. What differs:
 

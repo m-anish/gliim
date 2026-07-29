@@ -91,8 +91,8 @@ tactile, no end-stop.
 bounce badly; edge interrupts turn a single detent into a burst. Sample A/B in a
 timer ISR at ~1 kHz and run the standard 4-state quadrature machine (a 16-entry
 lookup on `prev<<2 | now`). It is smaller, has bounded worst-case cost, and
-rejects bounce structurally. Add an RC (1 kΩ + 10 nF) on each line for the
-electrically noisy case.
+rejects bounce structurally. Wiring, pull-ups and RC values are in
+[`../hardware/pinout.md`](../hardware/pinout.md) §3.
 
 **Acceleration** carries over from the old ramp work: slow near the bottom of the
 range so dim settings trim finely, faster when spun. `RAMP_LOW_FACTOR` and the
