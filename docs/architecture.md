@@ -114,13 +114,14 @@ the run is short and slow enough that cheap untwisted cable also works — see
   baud × distance product is ~1.7 × 10⁶ against a ~10⁸ rule of thumb, so there is
   a ~50× margin. Even 250 kbaud (DMX's rate) is comfortable.
 - **32 nodes** on a standard transceiver; more with fractional-unit-load parts.
-- Transceivers are ~₹17 and stocked locally. Prefer the **slew-limited**
-  **MAX483/MAX487** (5 V, our rail) over the MAX485 — same price and pinout, and
-  it is what makes cheap cable viable (see below). SP3485 boards are on the shelf
-  at Hubtronics if you go 3.3 V.
-- **Neither termination nor bias resistors are needed** at this speed and length,
-  given slew-limited, true-failsafe transceivers — which is what keeps every
-  board identical. See *Plug-and-play* below.
+- **Socket a generic RS-485 module** on a 6-pin header rather than placing a
+  transceiver — cheap, swappable, and it is the part that eats cable surges. A
+  slew-limited fail-safe IC (MAX3082 / SN65HVD3082E) is better engineering but an
+  optimisation, not a prerequisite. See *Use a generic RS-485 module* below.
+- **Termination is not needed** at this speed and length — with *any* transceiver,
+  reflections settle three orders of magnitude before the sampling instant. Remove
+  the 120 Ω many modules ship with. Bias is needed only if the part lacks a
+  fail-safe receiver. See *Plug-and-play* below.
 - Daisy-chain, not star. Stubs short.
 
 ### What was rejected, and why
