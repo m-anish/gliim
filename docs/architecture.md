@@ -393,15 +393,93 @@ and adding a driver node to a zone needs no change anywhere else.
 ### 6.3 Arbitration — start simple
 
 **v1: free-running broadcast, no master.** Panels transmit only when an encoder
-moves or a button changes. Events are human-paced and rare; collisions are
-unlikely, and when they happen the CRC drops the frame — which, given §6.1,
-costs nothing. Retransmit after a short random backoff.
+moves or a button changes. The CRC drops a collided frame — which, given §6.1,
+costs nothing.
 
-**Fallback if that misbehaves at scale: polled master.** One node (a driver)
-polls each panel in turn; panels reply with the same counters. Deterministic, no
-collisions, ~10 ms cycle for 8 panels at 115200. The counter model is unchanged —
-only who-talks-when differs, which is exactly why §6.1 is the load-bearing
-decision.
+### When does a panel transmit?
+
+Four states, and the last two are the ones that are easy to forget:
+
+1. **First detent → transmit immediately.** No waiting for the next cadence
+   slot; this is what makes the knob feel connected.
+2. **While the counter keeps changing → every ~20 ms** (§6.6), never per detent.
+3. **Motion stops → send ~3 more frames** at the same cadence. See below.
+4. **Idle → a heartbeat every ~2 s** carrying current counters.
+
+### ⚠ The end-of-motion gap
+
+The "a human is in the loop, so losses self-correct" argument in §6.1 holds
+*during* a turn and **fails at the end of one**. If the final frame is lost and
+the panel then goes silent, the driver's `last_seen` stays behind the panel's
+counter — and nothing is left to correct it, because the human has stopped
+turning. The light sits a detent or two off, and then *jumps* to catch up the
+next time someone touches that knob.
+
+States 3 and 4 above close it, and both are nearly free:
+
+- **Tail frames.** Three extra reports after motion stops. All three colliding is
+  a sub-1 % event even with several panels active.
+- **Idle heartbeat.** Every panel re-publishes its counters every ~2 s. Six nodes
+  at 0.5 Hz is **0.26 % bus load** — nothing — and it buys three things beyond
+  closing the gap: a driver that reboots re-syncs within two seconds, a driver
+  that was unplugged and returns picks up the current state, and a panel that has
+  died becomes *detectable* because its heartbeat stops.
+
+### ⚠ Jitter the cadence — do not use a fixed 20 ms
+
+Two panels transmitting on identical fixed intervals can phase-lock and collide
+on **every** attempt, indefinitely. This is the classic failure that survives
+bench testing (where you turn one knob at a time) and appears in the installed
+system.
+
+Randomise each interval — 20 ms ± 4 ms — and seed the offset from the node
+address so nodes start out spread. Back off by a random interval after any
+collision you detect.
+
+### How bad are collisions, really?
+
+A frame is 0.87 ms at 115200; a panel reporting at 50 Hz occupies **4.3 %** of
+the bus. A frame collides if another active panel starts within ±one frame time,
+so per other active panel the risk is ~2T/P ≈ 8.7 %:
+
+| Panels turning **at the same instant** | Collision rate | Effective update rate |
+|---|---|---|
+| 2 | 8.7 % | 46 Hz |
+| 3 | 16.6 % | 42 Hz |
+| 4 | 23.8 % | 38 Hz |
+| 6 (all of them) | 36.5 % | 32 Hz |
+
+**Collisions cost update rate, not correctness.** There is no lost input, no
+drift and no desync — the next counter carries the accumulated total regardless.
+Even the absurd case of six people simultaneously spinning knobs degrades a 50 Hz
+stream to 32 Hz, which nobody can perceive on a dimming light. At the realistic
+2–6 node scale with one or two people touching knobs, the bus is idle almost all
+the time.
+
+### Optional: real collision detection
+
+RS-485 transceivers have **separate** DE and RE pins. Tying them together (the
+usual trick to save a pin) means a transmitting node is deaf. Keep them on two
+pins and a panel can **read back its own transmission** — if what returns differs
+from what was sent, someone else is talking, and it can abort and back off
+immediately instead of waiting for a CRC failure that it never sees anyway.
+
+Both node types have the spare pin (§8), so this is close to free. It also makes
+a shorted or stuck bus diagnosable rather than merely silent.
+
+### If you would rather have determinism: polled master
+
+Still an easy retrofit, and at this scale it is cheap: **~9.5 ms round-robin for
+6 nodes** at 115200. Zero collisions, bounded latency, and trivially debuggable —
+you know exactly what should be on the wire at every instant.
+
+The costs are a master (obviously the driver node), constant traffic instead of a
+near-idle bus, and a latency floor of one poll cycle even when only one person is
+using the system. At 2–6 nodes free-running wins on simplicity; the numbers above
+say it comfortably wins on behaviour too.
+
+**The counter model is unchanged under either.** That is exactly why §6.1 is the
+load-bearing decision and arbitration is not.
 
 ### 6.4 Frame sketch
 
@@ -549,7 +627,7 @@ everywhere** is worth considering purely for BOM and toolchain simplicity.
 |---|---|
 | **Do panels display level?** | If yes they need an indicator per encoder (a small LED, or an LED ring) and must listen to `LEVELS` beacons. If no, panels are write-only and the protocol gets simpler. **Decide this first — it changes the panel BOM and half the protocol.** |
 | **Bus speed** | 115200 is safe on twisted pair. Drop to 19200–38400 on untwisted cable — nothing here is throughput-bound. |
-| **Free-running vs polled** | Start free-running (§6.3). Only move to polled if collisions actually bite. |
+| **Free-running vs polled** | Free-running, per the collision numbers in §6.3. Polled stays an easy retrofit (~9.5 ms cycle at 6 nodes) if you want determinism during bring-up. |
 | **Isolation** | Only needed if panels sit on different mains circuits. Costs ~₹200/node. |
 | **Zone count** | 16 is almost certainly plenty for one hall. |
 | **Does the driver keep IR?** | It is 1 pin and already written. Probably yes, as a per-node override. |
