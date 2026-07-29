@@ -149,6 +149,56 @@ Ground is shared, which RS-485 needs — it is differential, not isolated. If
 panels end up on different circuits, add isolated transceivers (ADM2582 class)
 and the problem goes away, at a cost.
 
+#### Daisy-chaining: two jacks per node, wired in parallel
+
+Yes — every node gets an **in** and an **out** jack, and the chain runs
+host → panel → panel → panel. But the two jacks are **soldered directly together
+inside the enclosure**. The node *taps* a bus that passes through it; it does not
+receive on one port and retransmit on the other.
+
+That distinction is the whole design:
+
+| | **Parallel pass-through** (this design) | **Store-and-forward chain** |
+|---|---|---|
+| Electrically | one continuous bus; every node hears every frame at the same instant | N point-to-point links |
+| A node loses power | **bus unaffected** — the pass-through is passive copper | everything downstream goes dark |
+| Latency | none per hop | one frame time per hop, accumulating |
+| Adding a node | plug it in anywhere; nothing else changes | routing/forwarding logic, and every hop must agree |
+| Protocol needs to know the chain order | **no** | yes |
+
+So the cabling you described is exactly right, and the protocol needs no support
+for it whatsoever. **The protocol has no concept of position, order, or
+neighbours** — a frame is broadcast and every node hears it. That is what makes
+this scale: adding a panel is a wiring operation, not a configuration one.
+
+**Termination and bias in a chain:**
+
+- **Termination** (120 Ω) goes at the **two physical ends only** — typically the
+  driver node at one end and the last panel at the other. It is *not* per node.
+  A 6P4C plug with a resistor across positions 3–4 makes a tidy terminator for
+  the last node's unused jack.
+- **Bias** (the idle pull-up/pull-down pair) goes in exactly **one** place on the
+  whole bus — put it on the driver node. Repeating it per node progressively
+  loads the line.
+
+**Stubs and stars.** Textbook RS-485 forbids branching. Slew-limited drivers make
+this far more forgiving than the literature implies: with ~1 µs edges, a stub has
+to run well past 10 m before it is electrically visible. Keep the run linear
+because it is *tidier* and because it makes termination obvious — but a short
+spur to a panel is not going to break anything.
+
+**What actually runs out first: power, not the bus.** The +5 V passes down the
+same chain, so current accumulates toward the host. Ten panels at ~15 mA over
+40 m of 24 AWG is ~150 mA through ~3.4 Ω, or ~0.5 V — still inside the 3.3 V
+regulator's headroom, but that is the constraint you will hit before any
+electrical or protocol limit. Past that, inject power at the far end or raise the
+distribution voltage.
+
+**One inherent cost of daisy chain:** unplugging a *cable* mid-run drops
+everything downstream. Powering a *node* down does not, since the pass-through is
+copper. For a fixed installation that trade is worth it — it buys the stub-free
+linear topology RS-485 wants.
+
 #### Cheaper cable — 4/6-core telephone works, with conditions
 
 The usual "you must use twisted pair" advice is aimed at long, fast buses. Ours
@@ -379,6 +429,42 @@ unique-ish (e.g. derived from the chip's serial number) so an unconfigured bus
 still works.
 
 ---
+
+### 6.6 Bus loading — rate-limit reports, don't send per detent
+
+A panel must **not** transmit on every detent. It should transmit its counters on
+a fixed cadence — every ~20–30 ms — for as long as they are changing, and go
+silent when they are not.
+
+This matters because it bounds bus load per panel *independently of how fast
+someone spins a knob*. Someone cranking an encoder at 2 rev/s generates 40
+detents/s; if each one sent a frame, load would scale with enthusiasm. At a fixed
+50 Hz cadence it doesn't.
+
+The arithmetic: a single-encoder report is ~10 bytes ≈ 0.87 ms at 115200. At 50
+reports/s that is **~4 % bus utilisation per actively-turning panel**. Idle
+panels contribute nothing. Realistically one or two people touch knobs at once,
+so the bus sits near 10 % — collisions are rare, and §6.1 means the rare one
+costs nothing.
+
+Rate-limiting is free here precisely *because* panels publish counters rather
+than events: batching 20 ms of detents into one frame loses no information, since
+the counter already carries the accumulated total. An event-based protocol could
+not do this.
+
+### 6.7 How far this scales
+
+| Limit | Ceiling | Notes |
+|---|---|---|
+| **Transceiver loading** | **~128 nodes** | MAX483/MAX487 are ¼-unit-load parts (the plain MAX485 is 1 UL → 32). Worth confirming in the datasheet's unit-load column when you order. |
+| **Address space** | 256 | one byte of `src_addr`; zones are 4 bits → 16 |
+| **Bus bandwidth** | ~20 simultaneously-active panels | at 4 % each; idle panels are free |
+| **Cable length** | several hundred m | the baud × distance rule gives ~870 m at 115200; drop the baud if you ever need more |
+| **Panel power** | **~10 panels / 40 m** | the real constraint — see the daisy-chain notes in §5 |
+
+Practical guidance: one bus segment comfortably serves a hall. If you ever
+outgrow it, the cheap escape is a second segment with its own driver node rather
+than a repeater.
 
 ## 7. What this deletes
 
