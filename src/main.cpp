@@ -719,6 +719,12 @@ static void calibrateCentre() {
 void setup() {
   pinMode(JOY_SW_PIN, INPUT_PULLUP);
   statusInit();
+#if GLIM_I2C && defined(QWIIC_EN_PIN)
+  // Power the Qwiic rail. Its LDO has a pulldown on ENABLE, so the bus stays
+  // dead until this runs — nothing downstream is energised before firmware is.
+  pinMode(QWIIC_EN_PIN, OUTPUT);
+  digitalWrite(QWIIC_EN_PIN, QWIIC_EN_AT_BOOT ? HIGH : LOW);
+#endif
   pwmInit();
 
 #if GLIM_DEBUG

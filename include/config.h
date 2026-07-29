@@ -98,9 +98,22 @@
 
 // I²C / Qwiic. TWI0 at its default pins, free because the LEDs moved.
 //   PB0 = SCL, PB1 = SDA
-// rev2 runs at **3.3 V**, which is Qwiic's own rail — so the connector wires
-// straight through: no LDO, no level shifter. That is why the board is 3.3 V.
+//
+// The board runs at 5 V, so the Qwiic port is bridged by a **3.3 V LDO + BSS138
+// level translator** — Qwiic is a 3.3 V standard and a shared pull-up does not
+// substitute (see hardware/rev2/README.md §5).
 #define GLIM_I2C 1
+
+// The LDO's ENABLE pin, so firmware can cut power to the Qwiic bus and whatever
+// is plugged into it. Useful for saving standby current, and for power-cycling a
+// wedged sensor without touching the mains.
+//
+// Fit a **100 kΩ pulldown** on this line: the MCU's pins are high-Z from
+// power-on until firmware runs, and an LDO with a floating EN is undefined. The
+// pulldown makes "off" the default and firmware the only thing that turns the
+// rail on — the same reasoning as the PT4115 DIM pulldowns.
+#define QWIIC_EN_PIN     PIN_PC2
+#define QWIIC_EN_AT_BOOT 1     // 0 = leave the bus powered down until asked
 
 // IR on PC0 — PORTC is the space the 20-pin part adds.
 #define IR_PIN       PIN_PC0
@@ -168,34 +181,25 @@
 #define GLIM_VARIABLE_PWM_FREQ 1
 
 // DIV1 with PER=65535 is the *ceiling* — full 16-bit resolution needs the whole
-// period — so the tiers only ever step downward from it. Where that ceiling lands
-// depends on the clock, and the two boards run different rails:
+// period — so the tiers only ever step downward from it. Both boards run 5 V /
+// 20 MHz, so both get:
 //
-//   rev1, 20 MHz (5.0 V)          rev2, 10 MHz (3.3 V)
-//   DIV1  305 Hz  40 cnt  1638:1  DIV1  152 Hz  20 cnt  3277:1
-//   DIV2  152 Hz  20 cnt  3277:1  DIV2   76 Hz  10 cnt  6554:1
-//   DIV4   76 Hz  10 cnt  6554:1
+//   DIV1  305 Hz   floor 40 counts (0.061%, ~3.5% perceived)  1638:1
+//   DIV2  152 Hz   floor 20 counts (0.031%, ~2.5% perceived)  3277:1
+//   DIV4   76 Hz   floor 10 counts (0.015%, ~1.8% perceived)  6554:1
 //
-// Note the halved clock costs flicker margin but *gains* depth: the driver's
-// fixed 2 µs floor is a smaller slice of a longer period. rev2 therefore starts
-// where rev1's deep-dim tier ends.
+// 305 Hz is the default for bright *and* mid — the top two tiers coincide, which
+// is deliberate: it is the frequency the hardware has run happily at, and even
+// there 16-bit beats the old 8-bit floor by 6.4×. Only the deep-dim tier trades
+// frequency away, where flicker is least visible. Set PWM_CLKSEL_LO to DIV4 for
+// the last 2× of depth if you can live with 76 Hz.
 #define PWM_CLKSEL_HI   TCA_SINGLE_CLKSEL_DIV1_gc
 #define PWM_CLKSEL_MID  TCA_SINGLE_CLKSEL_DIV1_gc
 #define PWM_PRESCALE_HI  1
 #define PWM_PRESCALE_MID 1
 
-#if GLIM_BOARD == 2
-// rev2 at 10 MHz: DIV1 is already 152 Hz with a 20-count floor (3277:1) —
-// *deeper* than rev1 manages at 305 Hz. Stepping down to DIV2 would buy 6554:1
-// at 76 Hz, which is not a trade worth making on a light. All tiers stay at DIV1,
-// so the schedule is effectively inert here; it's kept so the two boards share
-// one code path.
-#define PWM_CLKSEL_LO   TCA_SINGLE_CLKSEL_DIV1_gc    // 152 Hz
-#define PWM_PRESCALE_LO  1
-#else
 #define PWM_CLKSEL_LO   TCA_SINGLE_CLKSEL_DIV2_gc    // deep dim — 152 Hz
 #define PWM_PRESCALE_LO  2
-#endif
 #define PWM_FREQ_HI_LEVEL   128    // brightest channel above this → HI tier
 #define PWM_FREQ_LO_LEVEL   24     // brightest channel below this → LO tier
 #define PWM_FREQ_HYST       8

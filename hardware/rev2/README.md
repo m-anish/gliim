@@ -27,10 +27,9 @@ Companion documents:
 | 5 | **IR receiver on-board** | Couch control. The single most useful addition for the actual use case. |
 | 6 | **Status LED on-board** | One LED, one meaning: system on. The channels indicate themselves — see §7. |
 | 7 | **Input is a populate-time choice** | Joystick module *or* 5-way tactile + ladder, sharing one ADC pin. |
-| 8 | **Qwiic I²C connector** | PB0/PB1, wired straight through — the board runs at Qwiic's own 3.3 V. Turns the ambient-light sensor and friends into plug-in modules. §5. |
+| 8 | **Qwiic I²C connector** | PB0/PB1 via a switchable 3.3 V island (LDO + BSS138), with the LDO's enable on PC2 so firmware can power the bus down. §5. |
 | 9 | **WS2812 → one plain LED** | No interrupts-off bit-bang beside the IR decoder, works at any rail, one pin instead of two, and smaller firmware. §7. |
-| 10 | **3.3 V logic rail** (was 5 V) | Makes Qwiic native and costs only flicker margin — see §4. Nothing else in the design objects. |
-| 11 | **Reverse-polarity + fusing on the LED rail** | It's going in someone's home. |
+| 10 | **Reverse-polarity + fusing on the LED rail** | It's going in someone's home. |
 
 ---
 
@@ -65,17 +64,14 @@ their default pins (PB0/PB1/PB2); rev2 relocates all three to PB3/PB4/PB5 to fre
 PB0–PB2 for I²C and the UART (§4). Either way it is the same three timer outputs,
 so **one firmware source builds for both boards** — see §9.
 
-Operating point, per board — `CLKSEL = DIV1, PER = 65535` on both, so the clock
-sets everything:
+Operating point — both boards run 5 V / 20 MHz, `CLKSEL = DIV1, PER = 65535`:
 
 ```
-rev1   20 MHz →  305 Hz, floor ≈ 40 counts ⇒ ~1640:1
-rev2   10 MHz →  152 Hz, floor ≈ 20 counts ⇒ ~3280:1
+305 Hz, 16-bit, driver-limited floor ≈ 40 counts ⇒ ~1640:1
 ```
 
-rev2's slower clock (§4, a consequence of the 3.3 V rail) actually *doubles* the
-depth: the driver's fixed 2 µs floor is a smaller slice of a longer period. That
-is the whole "smooth ramp from near zero" wish, with no analog-dimming hardware.
+Drop to DIV2 (152 Hz) when everything is dim and it's ~3280:1. That is the whole
+"smooth ramp from near zero" wish, with no analog-dimming hardware.
 
 **The trade-off:** normal mode gives 3 channels; split mode gives 6 but only
 8-bit. The board routes both sets of pins, so it's a firmware choice plus which
@@ -112,9 +108,9 @@ dithering) are quantified in §4.
        │       │                        │             │
    [fuse+RP]   │                        │             │
        │   ┌───┴────┐  ┌───┴────┐  ┌────┴───┐    ┌────┴─────┐
-       │   │PT4115#1│  │PT4115#2│  │PT4115#3│    │3V3 buck │
+       │   │PT4115#1│  │PT4115#2│  │PT4115#3│    │ 5 V buck │
        │   └───┬────┘  └───┬────┘  └────┬───┘    └────┬─────┘
-       │    LED str 1   LED str 2    LED str 3        │ 3.3 V
+       │    LED str 1   LED str 2    LED str 3        │ 5 V
        │       ▲           ▲            ▲             │
        │       │DIM        │DIM         │DIM          │
        │    PB3│        PB4│         PB5│             │
@@ -125,12 +121,12 @@ dithering) are quantified in §4.
                     └──┬───┬───┬───┘
               PA1/PA7 ─┘   │   ├─ PC1 → status LED ("system on")
               input        │   └─ PC0 ← TSOP38238 IR receiver
-        (joystick OR       └───── PB0/PB1 → Qwiic I²C (direct — the
-         5-way ladder)                       board is 3.3 V, §5)
+        (joystick OR       └───── PB0/PB1 → Qwiic I²C, via 3V3 LDO +
+         5-way ladder)                       BSS138; PC2 enables it, §5)
 ```
 
-All grounds common. See §6 for why the 3.3 V rail is bucked off the LED rail
-rather than taken from a second PD board.
+All grounds common. See §6 for why the 5 V rail is bucked off the LED rail rather
+than taken from a second PD board.
 
 ---
 
@@ -150,32 +146,22 @@ identical** and picking one over the other is purely a flash-size decision.
 | Variant | txy4 | txy6 | **txy6** (same pinout as 1616) |
 | Package | SOIC-14 | SOIC-20 | **SOIC-20** (hand-solderable) |
 
-Firmware today is **5.7 KB — 17.5 % of the 3216's flash**, against 71 % of the
+Firmware today is **6.0 KB — 18.3 % of the 3216's flash**, against 71 % of the
 814's. That headroom is the point: IR learn mode, the ladder decoder, scenes and
 whatever else can land without ever re-running this arithmetic.
 
 The **256 B EEPROM** (double rev1's 128 B) matters too — the persist struct with
 six learned IR codes is ~35 B, so there is room for several stored scenes.
 
-**Clock: 10 MHz, because the board is 3.3 V.** Table 36-3 needs V_DD ≥ 4.5 V for
-20 MHz, and the maximum is linear from 10 MHz at 2.7 V to 20 MHz at 4.5 V — so
-3.3 V allows ~13.3 MHz, and 10 MHz is the highest option below that. BOD stays at
-2.6 V (BODLEVEL2), exactly the condition that table specifies for the 10 MHz row.
+**Clock: 20 MHz at 5 V**, same as rev1 — Table 36-3 requires V_DD ≥ 4.5 V for it.
+That gives 305 Hz PWM and a 1638:1 dimming ratio.
 
-That halves the PWM frequency versus rev1 — and *deepens* the dimming, because
-the driver's fixed 2 µs floor is a smaller slice of a longer period:
-
-| | rev1 — 5.0 V / 20 MHz | **rev2 — 3.3 V / 10 MHz** |
-|---|---|---|
-| PWM frequency | 305 Hz | **152 Hz** |
-| Floor | 40 counts (0.061 %) | **20 counts (0.031 %)** |
-| Dimming ratio | 1638:1 | **3277:1** |
-| Qwiic | needs LDO + shifter | **native** |
-
-152 Hz is well clear of flicker fusion; what you give up is stroboscopic margin —
-a waving hand or a phone camera will show it more readily than at 305 Hz. That is
-the one real cost of the 3.3 V decision, taken deliberately in exchange for a
-native I²C port, a rail-agnostic status LED, and twice the dimming depth.
+> A 3.3 V board was considered and rejected. It would make Qwiic native (deleting
+> the §5 island) and, counter-intuitively, dim *twice as deep* — 3277:1, because
+> the driver's fixed 2 µs floor is a smaller slice of a longer period. But 3.3 V
+> caps the clock at 10 MHz (max frequency is linear from 10 MHz at 2.7 V to
+> 20 MHz at 4.5 V), halving PWM to 152 Hz. On a lighting product, stroboscopic
+> margin is worth more than seven parts.
 
 Choose SOIC-20 over VQFN-20 unless you're reflowing — it hand-solders fine.
 
@@ -199,12 +185,12 @@ six.
 | 6 | PB5 | **LED ch3** | **LED ch3** | TCA0 WO2 *(alt)* |
 | 7 | PB4 | **LED ch2** | **LED ch2** | TCA0 WO1 *(alt)* |
 | 8 | PB3 | **LED ch1** | **LED ch1** | TCA0 WO0 *(alt)* |
-| 9 | PB2 | **UART TXD** | **UART TXD** | USART0 TxD — adapter's RX here |
+| 9 | PB2 | **UART TXD** | **UART TXD** | USART0 TxD — **TX only**, see below |
 | 10 | PB1 | **I²C SDA** | **I²C SDA** | TWI0 SDA → Qwiic |
 | 11 | PB0 | **I²C SCL** | **I²C SCL** | TWI0 SCL → Qwiic |
 | 12 | PC0 | **IR receiver** | **IR receiver** | TSOP38238 OUT |
 | 13 | PC1 | **Status LED** | **Status LED** | single LED — "system on" |
-| 14 | PC2 | *free* | *free* | |
+| 14 | PC2 | **Qwiic 3V3 enable** | **Qwiic 3V3 enable** | LDO EN — firmware powers the bus |
 | 15 | PC3 | *free* | *free* | (WO3 alt — leave clear) |
 | 16 | PA0 | **UPDI** | **UPDI** | 1 kΩ series to header |
 | 17 | PA1 | **Joystick X / ladder** | same | AIN1 |
@@ -212,9 +198,14 @@ six.
 | 19 | PA3 | *free* | **LED ch4** | TCA0 WO3 · EXTCLK |
 | 20 | **GND** | GND | GND | |
 
+**There is no UART RXD**, and that is deliberate rather than an omission: USART0's
+RXD is PB3, which is LED ch1, and USART0's only PORTMUX alternate is PA1/PA2 —
+the input. Debug telemetry only ever transmits, so nothing is lost; firmware
+clears `RXEN` so the receiver can't sit interrupting on the PWM waveform.
+
 Only PA3/PA4/PA5 change role between the two builds, so **one PCB serves both** —
-populate three drivers or six and let firmware pick the mode. PA6, PC2 and PC3
-stay free either way.
+populate three drivers or six and let firmware pick the mode. PA6 and PC3 stay
+free either way.
 
 #### Why the LEDs are on PB3/PB4/PB5, not PB0/PB1/PB2
 
@@ -245,7 +236,7 @@ part — it has a single TCA.
 
 | Build | Mode | Resolution | Floor | Ratio | ≈ perceived |
 |---|---|---|---|---|---|
-| **3 channels** | TCA0 normal | 16-bit | 0.031 % | **3277:1** | ~2.5 % |
+| **3 channels** | TCA0 normal | 16-bit | 0.061 % | **1638:1** | ~3.5 % |
 | 6 channels | TCA0 split | 8-bit | 0.391 % | 256:1 | ~8.1 % |
 | 6 channels **+ dithering** | TCA0 split | 8+2 bits | 0.098 % | **1024:1** | ~4.4 % |
 
@@ -253,16 +244,14 @@ Straight 8-bit is **6.4× shallower** — the exact gap that motivated 16-bit in
 first place. But temporal dithering (which glim had at 8-bit, and dropped as
 redundant once 16-bit landed) buys most of it back:
 
-- run split mode at **DIV32 = 1221 Hz** (rev2's 10 MHz clock; DIV64 on rev1's
-  20 MHz), where one count is 3.2 µs — still above the PT4115's 2 µs floor, so
-  single-count pulses remain honest;
+- run split mode at **DIV64 = 1221 Hz**, where one count is 3.2 µs — still above
+  the PT4115's 2 µs floor, so single-count pulses remain honest;
 - dither 2 bits → **10-bit effective, 1024:1**, and the dither pattern repeats at
   1221/4 = **305 Hz**, comfortably invisible.
 
-That lands 6-channel at 1024:1 against the 3-channel 3277:1 — a factor of 3.2
-rather than 12.8. Don't push the prescaler further down (one count below ~2 µs):
-the pulse falls under the driver's minimum on-time and the bottom of the range
-stops being monotonic.
+That lands 6-channel within **1.6×** of the 3-channel depth rather than 6.4×.
+Don't push to DIV16 (4883 Hz): one count falls to 0.8 µs, below the driver's
+minimum on-time, and the bottom of the range stops being monotonic.
 
 > **Not yet implemented.** The firmware today is normal-mode/16-bit only. A
 > 6-channel build needs the split-mode path and the dither ISR restored — both
@@ -273,10 +262,10 @@ Keep analog inputs on PORTA.
 
 ---
 
-## 5. Qwiic / I²C — native, because the board is 3.3 V
+## 5. Qwiic / I²C — 3.3 V island on a 5 V board
 
-TWI0 comes out on **PB1 (SDA)** and **PB0 (SCL)**, straight onto a standard
-**Qwiic connector: JST-SH 4-pin, 1 mm pitch**:
+TWI0 comes out on **PB1 (SDA)** and **PB0 (SCL)**, to a standard **Qwiic
+connector: JST-SH 4-pin, 1 mm pitch**:
 
 | Qwiic pin | Signal | Wire colour |
 |---|---|---|
@@ -285,22 +274,93 @@ TWI0 comes out on **PB1 (SDA)** and **PB0 (SCL)**, straight onto a standard
 | 3 | SDA | blue |
 | 4 | SCL | yellow |
 
-**No LDO, no level shifter, no pull-up gymnastics** — the board's logic rail *is*
-Qwiic's rail. Four wires from the MCU and the regulator to the socket, plus
-4.7 kΩ pull-ups on SDA/SCL (many breakouts carry their own; fit these anyway so
-the bus works with a bare sensor).
+> ### ⚠ Qwiic is a 3.3 V standard. The board runs at 5 V.
+>
+> Do not wire PB0/PB1 and the 5 V rail straight to the socket — that puts 5 V into
+> peripherals rated for 3.3 V.
+>
+> A shared 3.3 V pull-up does **not** substitute for a translator. I²C is
+> open-drain, so the pull-up sets the high level: pull to 3.3 V and the bus idles
+> at 3.3 V, but the ATtiny at V_DD = 5 V needs **V_IH ≥ 0.7 × 5 = 3.5 V** to read
+> a high. It half-works on the bench and drifts with temperature.
 
-That is the main reason rev2 runs at 3.3 V rather than 5 V. The alternative was a
-3.3 V LDO plus a two-MOSFET bidirectional translator with pull-ups on both sides
-— seven parts to bridge a gap that simply doesn't exist if the board already
-speaks 3.3 V.
+### The circuit
 
-> Historical note, in case you're tempted back to 5 V: a shared 3.3 V pull-up
-> does **not** substitute for a level shifter. I²C is open-drain, so the pull-up
-> sets the high level — pull to 3.3 V and the bus idles at 3.3 V, but an ATtiny at
-> V_DD = 5 V needs **V_IH ≥ 0.7 × 5 = 3.5 V** to read a high. It half-works on the
-> bench and drifts with temperature. See §4 for what going back to 5 V would cost
-> and gain.
+A 3.3 V LDO for the island, and the classic two-MOSFET bidirectional translator —
+gate to 3.3 V, source to the 3.3 V side, drain to the 5 V side, pull-ups on
+**both** sides.
+
+```
+                    ┌───────────────── PC2  (enable, from MCU)
+                    │
+   5 V ──┬──────┬───┴──[ LDO 3.3 V ]──┬──────────────► Qwiic pin 2
+         │      │       (EN pin!)     │
+        │R│    │R│         │         │R│  │R│
+        10k    10k       │R│ 100k    4k7  4k7
+         │      │          │          │    │
+  PB1 ───┤      │         GND         │    │
+  (SDA)  │      │                     │    │
+       ──┴──  ──┴──                   │    │
+       │BSS │  │BSS│  gates → 3V3     │    │
+       │138 │  │138│                  │    │
+       ──┬──  ──┬──                   │    │
+         └──────┼─────────────────────┴────┤
+                └───────────────────────► Qwiic 3 (SDA) / 4 (SCL)
+   GND ────────────────────────────────► Qwiic pin 1
+```
+
+### The enable pin — pick an LDO that has one
+
+**PC2 drives the LDO's ENABLE**, so firmware can cut power to the Qwiic bus and
+everything plugged into it: saves standby current, and power-cycles a wedged
+sensor without touching the mains.
+
+That constrains the part. The usual cheap LDOs — **MCP1700, XC6206 — have no
+enable pin** and will not do. Use one that does:
+
+| Part | Package | I_out | Note |
+|---|---|---|---|
+| **AP2112K-3.3** | SOT-23-5 | 600 mA | the easy default; EN on pin 3 |
+| RT9013-33 | SOT-23-5 | 500 mA | equivalent, often cheaper |
+| TLV70233 | SOT-23-5 | 300 mA | TI, if you prefer |
+
+**Fit a 100 kΩ pulldown on the EN line.** The MCU's pins are high-Z from power-on
+until firmware runs, and an LDO with a floating EN is undefined — it might come up
+either way. The pulldown makes "off" the default and firmware the only thing that
+turns the rail on, exactly the reasoning behind the PT4115 DIM pulldowns.
+
+Two things worth knowing about switching the rail off:
+
+- **The translator fails safe.** With 3.3 V gone the BSS138 gates sit at 0 V, so
+  the MOSFETs are off and the body diodes are reverse-biased (LV at 0, HV pulled
+  to 5 V). Nothing conducts, and the MCU-side bus simply idles high on its 10 kΩ
+  pull-ups.
+- **It also blocks back-powering.** With the LV pull-ups dead, the 3.3 V side is
+  not driven high from the 5 V side, so no current sneaks into a sensor's ESD
+  diodes and half-powers it. Wired *without* a translator this would be a real
+  hazard; with one, it's handled.
+
+Firmware must not attempt a transaction while the rail is down — transfers would
+just NAK or hang. `QWIIC_EN_AT_BOOT` in `config.h` decides the power-on state
+(default: on).
+
+| Part | Qty | Note |
+|---|---|---|
+| **AP2112K-3.3** (or RT9013-33) | 1 | LDO **with EN** |
+| 1 µF ceramic | 2 | LDO in/out |
+| **BSS138** (SOT-23) | 2 | one per line |
+| 10 kΩ | 2 | pull-ups, 5 V side |
+| 4.7 kΩ | 2 | pull-ups, 3.3 V side |
+| 100 kΩ | 1 | **EN pulldown** |
+| JST-SH 4-pin SMD socket | 1 | Qwiic / STEMMA QT |
+
+~₹45 all in, and a pre-made "I²C level converter" module covers the two BSS138s
+and four pull-ups if you'd rather not place discretes — just add the LDO, the EN
+pulldown and the socket.
+
+> **STEMMA QT** shares the connector and pinout, and many Adafruit breakouts are
+> 5 V tolerant — but *many* is not *all*. With the translator fitted, the question
+> never arises.
 
 ### What it's for
 
@@ -342,29 +402,28 @@ LED power, ≈1.7 A input**. That needs a **45 W or larger** PD charger — a
 20 V/1.5 A (30 W) one is *not* enough. At the gentler 330 mA it is ≈16 W / 0.85 A
 and 30 W suffices.
 
-### 3.3 V logic rail
+### 5 V logic rail
 
 The board in hand outputs 9/12/15/20 V only — **it has no 5 V setting**, so a
 second identical decoy board can't feed the logic. Three options:
 
-**Buck the 20 V rail down to 3.3 V** — one cable, one charger, guaranteed common
+**Buck the 20 V rail down to 5 V** — one cable, one charger, guaranteed common
 ground, and the LED rail is always up before the logic. An adjustable module
-(MP1584, LM2596) set to 3.3 V is fine.
+(MP1584, LM2596) set to 5 V is fine.
 
-> **Do not use an LDO from 20 V.** At 20 V in, 3.3 V out and ~30 mA you would burn
-> 0.5 W in the regulator to deliver 0.1 W. It's a switching job.
+> **Do not use an LDO from 20 V.** At 20 V in, 5 V out and ~30 mA you would burn
+> 0.45 W in the regulator to deliver 0.15 W. It's a switching job.
 
-The 3.3 V rail feeds the MCU, the joystick (or ladder), the IR receiver, the
-status LED **and the Qwiic connector** — one rail, no translation anywhere.
+The 5 V rail feeds the MCU, the joystick (or ladder), the IR receiver and the
+status LED. The Qwiic port gets its own 3.3 V island off this rail — see §5.
 
 **Buck input rating matters:** MP1584 tops out at ~28 V — fine at 20 V, no margin
 if you ever move up. LM2596 (40 V) is the safer pick.
 
-Everything downstream is happy at 3.3 V: the PT4115's `V_DIM_H` is **2.5 V**, so
-3.3 V logic clears it with margin; the TSOP38238 runs from 2.5 V; and the joystick
-and resistor ladder are *ratiometric* — the pot divides V_DD and the ADC
-references V_DD, so they return identical counts at 3.3 V and 5 V. No
-recalibration, no lost resolution.
+5 V buys the **20 MHz clock** (Table 36-3 requires V_DD ≥ 4.5 V for it), and with
+it 305 Hz PWM instead of the 152 Hz a 3.3 V/10 MHz board would manage. The cost is
+the 3.3 V island in §5 — seven parts — which is the trade taken here: stroboscopic
+margin on a *lighting* product is worth more than deleting a sub-circuit.
 
 ### Protection
 
@@ -454,8 +513,7 @@ This replaced a WS2812. Three reasons, in order of how much they matter:
 
 ### Channel indicator LEDs — the other half of the story
 
-**LED + 470 Ω to GND on each driver's DIM line** (470 Ω at 3.3 V gives ~3 mA;
-use 1 kΩ on a 5 V board). Zero extra pins: the line is
+**LED + 1 kΩ to GND on each driver's DIM line** (~3 mA at 5 V). Zero extra pins: the line is
 already a PWM output, so the indicator's brightness *mirrors that channel's
 level* for free — a live three-bar meter beside the control.
 
@@ -495,7 +553,7 @@ anything but UPDI.
 | 7 | 100 µF / 35 V electrolytic | 1 | bulk on the LED rail |
 | 8 | 10 kΩ resistor | 3 | **DIM pulldowns — mandatory** |
 | 9 | USB-C PD decoy board | 1 | jumper to 20 V |
-| 10 | **3.3 V buck module** (LM2596/MP1584, adjustable) | 1 | from the LED rail — not an LDO |
+| 10 | **5 V buck module** (LM2596/MP1584, adjustable) | 1 | from the LED rail — not an LDO |
 | 11 | TSOP38238 | 1 | + 100 Ω, 4.7 µF, 100 nF |
 | 12 | LED + 1 kΩ | 1 | status indicator, "system on" — §7 |
 | 12b | LED + 1 kΩ | 3 (or 6) | per-channel indicators on the DIM lines — §7 |
@@ -506,8 +564,11 @@ anything but UPDI.
 | 17 | 1 kΩ | 1 | UPDI series |
 | 18 | Fuse 2 A + SMAJ26A TVS + P-FET | 1 ea | protection |
 | 19 | Screw terminals, 2-pin | 3 | LED string outputs |
-| 20 | 4.7 kΩ | 2 | I²C pull-ups on SDA/SCL |
-| 21 | JST-SH 4-pin SMD socket | 1 | Qwiic / STEMMA QT — wires straight through |
+| 20 | **AP2112K-3.3** (LDO *with EN*) + 2 × 1 µF | 1 | Qwiic 3.3 V island — §5 |
+| 21 | BSS138 | 2 | I²C level translator, one per line |
+| 22 | 10 kΩ ×2 (5 V side), 4.7 kΩ ×2 (3.3 V side) | 1 set | translator pull-ups |
+| 23 | 100 kΩ | 1 | **LDO EN pulldown** — bus off until firmware says otherwise |
+| 24 | JST-SH 4-pin SMD socket | 1 | Qwiic / STEMMA QT |
 
 Electronics ≈ **₹900–1200 / $11–15** per unit, excluding LEDs and charger.
 
