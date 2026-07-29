@@ -41,7 +41,7 @@ EC11s need, while keeping 3 LED channels and **both** transports live.
 | **12** | PC0 | encoder 3 `SW` | |
 | **13** | PC1 | **MCU RXD** ← HC-12 `TXD` | USART1 **ALT1** |
 | **14** | PC2 | **MCU TXD** → HC-12 `RXD` | USART1 **ALT1** |
-| **15** | PC3 | **WS2812 DIN** | status/link. 100 nF at the LED, 330 Ω in series |
+| **15** | PC3 | **WS2812 DIN** | status/link. 470 Ω in series at the MCU, 100 nF at the LED |
 | **16** | PA0 | **UPDI** | 1 kΩ series to the programming pad |
 | **17** | PA1 | encoder 1 `A` | |
 | **18** | PA2 | encoder 1 `B` | |
@@ -161,7 +161,7 @@ one fitted there is no bus contention and the RX select jumper is unnecessary.
 | **10** | PB1 | HC-12 `SET` | unused in the RS-485 build |
 | **11** | PB0 | *free* | |
 | **12** | PC0 | **IR receiver** | `PORTC_PORT_vect` — see §9a of architecture.md |
-| **13** | PC1 | **WS2812 DIN** | status/link. 100 nF at the LED, 330 Ω in series |
+| **13** | PC1 | **WS2812 DIN** | status/link. 470 Ω in series at the MCU, 100 nF at the LED |
 | **14** | PC2 | *free* | |
 | **15** | PC3 | *free* | |
 | **16** | PA0 | **UPDI** | 1 kΩ series to the programming pad |
@@ -620,8 +620,8 @@ it cuts the burst.
 | **10 kΩ pull-up on UART TXD** | both, pin 9 | The RS-485 auto-flow module keys its driver by sniffing TXD. A floating TXD during the MCU's boot window can **assert the driver and jam the whole bus**. Holds it idle-high until firmware takes over. |
 | **10 kΩ pull-up on HC-12 `SET`** | RF builds | Floating `SET` can dip into AT mode on noise, where the radio silently stops forwarding. See §3a. **Pull up to the *switched* HC-12 rail, not the always-on +5 V** — otherwise, with the module's power jumper removed, the pull-up feeds current into its `SET` pin through the ESD diode and parasitically part-powers it. |
 | **PPTC ~200 mA** in series with `V_BUS` to the jacks | main board | A reversed or damaged lead shorts `V_BUS` to GND through the cable. Without a fuse that short is limited only by the PD supply's 3 A. |
-| **330 Ω series on WS2812 `DIN` + 100 nF at the LED** | both | Easy to omit because the part "works" without them; the resistor damps the data edge and the cap holds the LED's rail through colour changes. |
-| **330 Ω series + 100 nF** at each WS2812 | main pin 15, panel pin 13 | Damps the data edge and holds the LED's rail steady through colour changes. |
+| **470 Ω series on WS2812 `DIN` + 100 nF at the LED** | both | Easy to omit because the part "works" without them; the resistor damps the data edge and the cap holds the LED's rail through colour changes. |
+| **470 Ω series + 100 nF** at each WS2812 | main pin 15, panel pin 13 | Damps the data edge and holds the LED's rail steady through colour changes. Anything 220–470 Ω works — 470 Ω matches the indicator-LED resistors, saving a BOM line. Place the resistor at the **MCU** end; it is source damping. |
 | **1 kΩ series** on UPDI | both, pin 16 | Standard serialUPDI wiring. |
 | **100 nF + 10 µF** | both, pin 1 | Decoupling. |
 | **≥470 µF** at the HC-12 | RF builds | Rides out the ~100 mA transmit burst. |
