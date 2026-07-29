@@ -193,7 +193,111 @@ don't, which makes §2.4 moot.
 
 ---
 
-## 3. Pin summary
+## 3. A second control point, 3–4 m away
+
+Two control positions for one fixture — the two-way-light-switch problem.
+
+### Don't parallel two joysticks
+
+It half-works, which is worse than failing. Tie two 10 kΩ pot wipers to the same
+ADC pin and you get a resistive average, not an OR. The **idle** stick is the
+problem: its wiper sits at mid-rail with a ~2.5 kΩ source impedance and actively
+pulls the reading back toward centre while you push the other one.
+
+Stick A resting at centre, stick B pushed:
+
+| B pushed to | intended | ADC actually sees | you get |
+|---|---|---|---|
+| 55 % | +0.05 | +0.025 | **50 %** |
+| 70 % | +0.20 | +0.109 | 54 % |
+| 85 % | +0.35 | +0.232 | 66 % |
+| 95 % | +0.45 | +0.378 | 84 % |
+| 100 % | +0.50 | +0.500 | 100 % |
+
+Deflection compresses to about **half near centre**, recovering to full only at
+the very end of travel — because at the extremes the wiper is a hard short to the
+rail and wins outright. Consequences for glim's constants:
+
+- the 110-count **deadzone** effectively doubles — you push twice as far before
+  anything happens;
+- the ramp rate is proportional to deflection, so dimming crawls;
+- the 320-count **channel flick** would need ~89 % of full travel instead of 62 %.
+
+Add 3–4 m of high-impedance analog wiring next to three switching regulators and
+the noise is on top of that. (The push-*switches* parallel perfectly, for what
+it's worth — they're just contacts to GND.)
+
+### Do this instead: a 5-way ladder at the far end
+
+The resistor ladder (§2) has exactly the property the pot lacks: **it idles as an
+open circuit.** An untouched ladder contributes *nothing* to the node, so two of
+them can share one ADC pin and simply OR together.
+
+```
+                       5 V
+                        │
+                       │R│ 4.7k          (on-board, one pull-up for both)
+                        │
+   PA1 ●────────────────●──────────────────────┐
+   (AIN1)               │                      │  3-4 m
+                      ═╪═ 100n                 │
+                        │              ┌───────┴────────┐
+        ┌───────────────┴──────┐       │  remote unit   │
+        │   on-board ladder    │       │  470/1k/2k2/4k7│
+        │   470/1k/2k2/4k7     │       │  + 5-way switch│
+        └───────────┬──────────┘       └───────┬────────┘
+   PA7 ●────────────┴──── centre push ─────────┤
+   GND ●─────────────────────────────────────  ┘
+```
+
+**Three wires to the remote unit: the ADC node, the centre-push line, and GND.**
+No supply needed at the far end — the pull-up lives on the board.
+
+Verified against the §2.3 decode windows:
+
+| Situation | ADC | Decodes as |
+|---|---|---|
+| both units idle | 1023 | idle ✓ |
+| any direction, either unit | 93 / 179 / 326 / 512 | exactly as designed ✓ |
+
+**Why this survives a 4 m cable** where a pot wouldn't: the ladder is decoded into
+*windows* 60 counts wide with 86–511 count gaps, so noise has to be enormous to
+cause a misread. A pot's exact value *is* the control signal, so every millivolt
+of pickup is an error. Keep the 100 nF at the MCU end, and run the ADC node
+twisted with GND.
+
+**The one caveat:** if someone presses a direction on *both* units at the same
+instant, the two resistors parallel and the reading lands somewhere else — most
+combinations fall outside every window and are safely ignored, but a few
+(e.g. RIGHT+RIGHT) decode as a different direction. Two people operating one
+fixture in the same 20 ms is not a scenario worth engineering around; if it
+bothers you, use the separate-pin variant below.
+
+### If you want zero interaction
+
+Give the remote unit its **own ADC pin**. In the 3-channel build PA3/PA4/PA5 are
+free *and* ADC-capable (AIN3/4/5), so:
+
+- on-board ladder or joystick → PA1 (+PA2)
+- remote ladder → **PA3**, its push → PC3
+- firmware reads both and acts on whichever is active
+
+Four wires to the remote instead of three, no shared-node effects at all, and you
+can tell the two units apart in firmware if you ever want to. The cost is the
+6-channel expansion — PA3 would have been LED ch4.
+
+### Either way, for a 3–4 m run
+
+- **Twisted pair or shielded**, ADC node paired with GND.
+- **100 nF** at the MCU end (already in the §2.1/§2.3 design).
+- A **220 Ω series resistor** at the connector on the ADC and push lines — cheap
+  ESD/transient protection for a cable leaving the enclosure. It adds to the
+  source impedance, which the windowed decode absorbs without noticing.
+- Route the cable away from the LED wiring; the drivers switch at ~500 kHz.
+
+---
+
+## 4. Pin summary
 
 | Signal | Pin | Joystick | Ladder |
 |---|---|---|---|
