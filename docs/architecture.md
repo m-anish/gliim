@@ -129,9 +129,67 @@ the run is short and slow enough that cheap untwisted cable also works — see
 |---|---|
 | **I²C / Qwiic over distance** | Designed for on-board, < 1 m. Single-ended, no noise margin, and it hangs the whole bus when a node glitches. Even with P82B715 extenders this is the wrong tool. |
 | **CAN** | Genuinely more robust — arbitration and error handling in hardware. But the ATtiny has no CAN controller, so it means an MCP2515 + transceiver per node over SPI. Real cost and complexity for a benefit a lighting panel doesn't need. |
-| **Wireless (nRF24 / ESP-NOW / LoRa)** | Panels need power anyway, so the cable is already there. Wireless adds pairing, a commissioning step, and a class of failure that is invisible to the user. Against glim's "no pairing, instant" premise. Reconsider only if cable is genuinely impossible. |
+| **Wireless (nRF24 / HC-12 / ESP-NOW)** | Wins only if panels are **battery**-powered; otherwise you are running a wire anyway and two more conductors are free. Full comparison in *Wireless — when it actually wins* below. |
 | **DMX512** | Is RS-485 at 250 kbaud with a lighting protocol on top — but unidirectional controller → fixture, and our panels are *inputs*. Worth knowing about if glim ever needs to sit in a stage-lighting rig. |
 | **DALI** | The actual industry standard for this exact job: 2-wire, polarity-insensitive, 1200 baud, designed for building lighting. Needs specific transceivers and a real stack. Right answer for a commercial product, over-heavy for this one. |
+
+### Wireless — when it actually wins
+
+Worth a real answer rather than a one-line dismissal, because the wired-vs-RF
+question has exactly one hinge:
+
+> **Does the panel need a power wire regardless?**
+> If yes, wireless saves nothing — the hard part of the install is already done,
+> and two extra conductors in the same cable are nearly free.
+> If no — a battery panel — wireless enables something wired cannot: a knob you
+> stick on any wall with no wiring at all.
+
+Everything else is secondary to that. Rough costs for six nodes:
+
+| Approach | ~Cost | The catch |
+|---|---|---|
+| **Wired RS-485** | ~₹1400 | Labour of pulling cable. Includes a one-off ₹300 crimper. |
+| RF, mains-powered panels | ~₹1200 | **Needs a mains socket at every panel location** — and walls where you want a light switch rarely have one. Usually a worse install than the cable. |
+| RF, **battery** panels | ~₹800 | Zero install labour. Sleep firmware, and a dead battery means a dead light switch. |
+| HC-12 (UART-transparent) | ~₹1800 | Drop-in — same protocol, same firmware. Just expensive. |
+
+**The honest case for RF:** if the hall is already finished, with no conduit and
+no easy route, pulling cable can dominate the entire cost and effort of the job.
+That is a real argument and it is about the building, not the electronics.
+
+**The honest case against:** a light switch that stops working because of a
+battery is worse than one that needed a wire. Commercial battery wall controls
+exist and work well, but they are carefully engineered around exactly this
+problem. And RF is invisible when you are debugging — the wired module has TX/RX
+LEDs you can watch.
+
+One point genuinely in RF's favour, which cuts against my earlier dismissal:
+**the counter protocol (§6.1) already tolerates packet loss.** A dropped RF
+packet is exactly as harmless as a dropped RS-485 frame, and the next report
+carries the correct cumulative value. Wireless is far more palatable under this
+design than it would be under an event-based one.
+
+If you go RF:
+
+- **nRF24L01+** (~₹80) — cheapest, hardware auto-ACK and retransmit, but it costs
+  5 SPI-ish pins against the module's 2 (panel budget: 16/18 instead of 13/18),
+  and it is famously fussy about supply decoupling. 2.4 GHz is fine across one
+  open hall, poor through brick.
+- **HC-12** (~₹300) — 433 MHz, ~1 km, and **transparent over UART**, so it is a
+  literal drop-in for the RS-485 module: same pins, same frames, same firmware.
+  Check the latency of whichever FU mode you use — some buffer enough to make a
+  knob feel laggy.
+- Avoid bare 433 MHz ASK modules (FS1000A class). No addressing, no error
+  detection, and the band is full of doorbells and car remotes.
+
+**This is not a one-way door.** The protocol is framed bytes over a UART — it has
+no idea what carries them. Building wired now and bridging a battery panel over
+RF later requires no protocol change at all.
+
+**Recommendation: wired.** At 2–6 nodes in one hall, with panels that want to be
+on walls where sockets generally are not, the cable does double duty as power and
+data and removes the battery from the system entirely. Revisit only if surveying
+the building says cable cannot go where the panels must.
 
 ### Wiring
 
