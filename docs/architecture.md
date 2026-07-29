@@ -435,10 +435,9 @@ on top.** At 2–6 nodes this is the right call:
 
 - No fine-pitch part to place, and no bus-facing circuitry to respin if you get
   it wrong.
-- **The transceiver is the part that dies.** It is the only thing connected to a
-  long cable leaving the enclosure, so it eats the surges. Making it a
-  ₹40 socketed module rather than a soldered IC turns a scrapped board into a
-  30-second swap.
+- **Rework is easy if it ever does fail.** Castellated half-holes desolder with
+  wick or hot air far more readily than a fine-pitch IC. *Solder it flat* — do
+  not fit a socket; see `hardware/pinout.md` §3b.
 - Available everywhere, and ideal for step 1 of §11.
 
 **Recommended part: the HW-0519-class "RS485 to TTL, automatic flow control"

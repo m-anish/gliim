@@ -375,10 +375,9 @@ The reason it was dropped no longer applies. Use a 30–40 V part (BAT54, SS14).
 Two things it does *not* protect, worth knowing:
 
 - A reversed cord still lifts the panel's ground 15 V above the bus, which
-  stresses the transceiver's A/B pins. The module's TVS clamps it, and **the
-  module is socketed** — so the most exposed part of the system is also the
-  ₹31 one you can swap in 30 seconds. That was always the argument for using a
-  module rather than a bare transceiver.
+  stresses the transceiver's A/B pins. The module's TVS clamps it, and if the
+  part does die it is a ₹31 module on castellated pads rather than a fine-pitch
+  IC — genuinely reworkable (§3b).
 - It cannot make a reversed cable *work*. That is fine; "does not power up" is a
   good failure.
 
