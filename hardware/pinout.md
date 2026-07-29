@@ -34,13 +34,13 @@ EC11s need, while keeping 3 LED channels and **both** transports live.
 | **5** | PA7 | encoder 1 `SW` | |
 | **6** | PB5 | **LED ch3** | TCA0 **WO2 ALT1**. 10 kΩ pulldown to DIM |
 | **7** | PB4 | encoder 2 `SW` | ⚠ do not fuse as alt-reset |
-| **8** | PB3 | **RS-485 RXD** | USART0 default |
-| **9** | PB2 | **RS-485 TXD** | USART0 default. **10 kΩ pull-up** |
+| **8** | PB3 | **MCU RXD** ← module `TXD` | USART0 default |
+| **9** | PB2 | **MCU TXD** → module `RXD` | USART0 default. **10 kΩ pull-up** |
 | **10** | PB1 | **LED ch2** | TCA0 WO1 default. 10 kΩ pulldown to DIM |
 | **11** | PB0 | **LED ch1** | TCA0 WO0 default. 10 kΩ pulldown to DIM |
 | **12** | PC0 | encoder 3 `SW` | |
-| **13** | PC1 | **HC-12 RXD** | USART1 **ALT1** |
-| **14** | PC2 | **HC-12 TXD** | USART1 **ALT1** |
+| **13** | PC1 | **MCU RXD** ← HC-12 `TXD` | USART1 **ALT1** |
+| **14** | PC2 | **MCU TXD** → HC-12 `RXD` | USART1 **ALT1** |
 | **15** | PC3 | **WS2812 DIN** | status/link. 100 nF at the LED, 330 Ω in series |
 | **16** | PA0 | **UPDI** | 1 kΩ series to the programming pad |
 | **17** | PA1 | encoder 1 `A` | |
@@ -156,8 +156,8 @@ one fitted there is no bus contention and the RX select jumper is unnecessary.
 | **5** | PA7 | encoder 1 `SW` | |
 | **6** | PB5 | encoder 2 `SW` | |
 | **7** | PB4 | encoder 3 `SW` | |
-| **8** | PB3 | **UART RXD** | ← module TXD (RS-485 *or* HC-12) |
-| **9** | PB2 | **UART TXD** | → module RXD. **10 kΩ pull-up** — see below |
+| **8** | PB3 | **MCU RXD** ← module `TXD` | RS-485 *or* HC-12 |
+| **9** | PB2 | **MCU TXD** → module `RXD` | **10 kΩ pull-up** — see below |
 | **10** | PB1 | HC-12 `SET` | unused in the RS-485 build |
 | **11** | PB0 | *free* | |
 | **12** | PC0 | **IR receiver** | `PORTC_PORT_vect` — see §9a of architecture.md |
@@ -295,12 +295,82 @@ Two things to leave configurable rather than hard-code:
 
 ---
 
+## 3a. Wiring the HC-12
+
+```
+         +5V ──┬──────────────┬── 10k
+               │              │
+              100n         ┌──┴──┐
+               │           │ SET │ ── 2-pin header ── GND   (config only)
+              GND          └─────┘
+                             │
+   VCC ── +5V              (pin 5)
+   GND ── GND     ← all GND pins: 2, 7, 8
+   RXD ── MCU TXD  (main pin 14 / PC2)
+   TXD ── MCU RXD  (main pin 13 / PC1)
+   ANT ── no-connect on the PCB; antenna fits the module
+```
+
+### `SET` — pull it high, and give yourself a way to pull it low
+
+`SET` is **active-low**: hold it low and the module enters AT command mode;
+leave it high and it is a transparent serial link. It has a weak internal
+pull-up, so a floating pin *usually* behaves — but "usually" is the problem. A
+noise spike that dips `SET` drops the radio into AT mode, where it silently stops
+forwarding traffic and looks exactly like a dead link.
+
+**So:**
+
+1. **10 kΩ pull-up to +5 V.** Defines the state. This is the part that must be on
+   the board.
+2. **A 2-pin header (or solder jumper) from `SET` to GND.** Fit a shunt to
+   configure, pull it to run. Costs nothing and means you never have to desolder
+   a module to change its channel.
+
+The main board has **no spare MCU pin** for `SET` (all 17 are committed), which is
+fine because nothing changes it at runtime — channel, baud and TX power are
+set-once. The panel *does* have a pin for it (3216 pin 10 / PB1, unused in the
+RS-485 build), so there you can drive it from firmware if you prefer.
+
+**Configuring:** short the `SET` header, power up, and send AT commands over the
+module's own `RXD`/`TXD` — either from a USB-serial adapter on those nets, or by
+having the MCU relay bytes from its other UART. Remove the shunt to return to
+normal operation.
+
+### Baud rate: the HC-12 path must be slower
+
+The HC-12 defaults to **9600 baud**, and unlike RS-485 that is not a number to
+casually raise — in FU3 mode a lower serial rate buys better receiver sensitivity
+and more range, and the radio's real throughput is well below the UART's anyway.
+
+At 9600 a 10-byte report takes **10.4 ms**. Against the 20 ms cadence of §6.6 that
+is >50 % occupancy from a single panel — far too much. **Run the RF path at a
+~50 ms cadence (20 Hz)** instead, which drops it to ~17 %.
+
+20 Hz is still smooth on a dimmer, and nothing is lost: the counter protocol
+carries the accumulated total regardless of how often it is sent. Two USARTs
+means the wired path keeps its 115200 and its 20 ms cadence independently — the
+two transports do not have to agree.
+
+Budget end-to-end latency of ~100 ms on the RF path once the module's own
+buffering is included. Worth measuring before assuming it feels right.
+
+### Power
+
+Fit **≥100 µF** at the module — 470 µF if it is fed from the 12 V → 5 V linear
+regulator — to ride out the ~100 mA transmit burst. Consider turning TX power
+down from the default 20 dBm; across one hall you need nothing like 100 mW, and
+it cuts the burst.
+
+---
+
 ## 4. External parts that are not optional
 
 | Part | Where | Why |
 |---|---|---|
 | **10 kΩ pulldown** per LED channel | main, pins 6/10/11 | The PT4115 pulls DIM up internally through 200 kΩ. MCU pins are high-Z from power-on until firmware runs, so **without this every light blasts at 100 % on every power cycle**, before any code executes. |
 | **10 kΩ pull-up on UART TXD** | both, pin 9 | The RS-485 auto-flow module keys its driver by sniffing TXD. A floating TXD during the MCU's boot window can **assert the driver and jam the whole bus**. Holds it idle-high until firmware takes over. |
+| **10 kΩ pull-up on HC-12 `SET`** | RF builds | Floating `SET` can dip into AT mode on noise, where the radio silently stops forwarding. See §3a. |
 | **330 Ω series + 100 nF** at each WS2812 | main pin 15, panel pin 13 | Damps the data edge and holds the LED's rail steady through colour changes. |
 | **1 kΩ series** on UPDI | both, pin 16 | Standard serialUPDI wiring. |
 | **100 nF + 10 µF** | both, pin 1 | Decoupling. |
