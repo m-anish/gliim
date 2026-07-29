@@ -31,7 +31,7 @@ a particular model: you teach it which buttons you want.
 fire at ~0.7 s on the way — keep holding; glim undoes it when learn mode starts,
 so the room ends up as it was.
 
-The lights go out and the status pixel starts blinking. It walks six actions in
+The lights go out and the status LED starts blinking. It walks six actions in
 order, blinking **n+1 times** to say which one it's asking for:
 
 | Blinks | Press the remote button you want for… |
@@ -43,10 +43,16 @@ order, blinking **n+1 times** to say which one it's asking for:
 | 5 | toggle this channel |
 | 6 | toggle all channels |
 
-Green flash = accepted. Red flash = you pressed a button already used for
-something else; try a different one. Stop pressing for 10 seconds and it saves
-whatever you've bound so far and exits — so binding just the first two is fine if
-that's all you want. Three blue flashes mean it's saved.
+Feedback is by blink count, so it reads the same on any indicator:
+
+| What you see | Means |
+|---|---|
+| **one long flash** | accepted — moving to the next action |
+| **four rapid flashes** | that button is already bound to something else; try another |
+| **three slow flashes** | saved, learn mode finished |
+
+Stop pressing for 10 seconds and it saves whatever you've bound so far and exits
+— binding just the first two is fine if that's all you want.
 
 Bindings live in EEPROM and survive power cycles and reflashing. Run learn mode
 again any time to rebind; a factory reset clears them.
@@ -55,9 +61,9 @@ again any time to rebind; a factory reset clears them.
 
 The remote drives exactly the same actions as the stick — **hold** brighter or
 dimmer to ramp (it tracks the remote's repeat frames, so it ramps for as long as
-you hold), and the channel/toggle buttons are single-shot. The status pixel and
-acknowledge-blink behave identically, so it's obvious which channel you're
-steering from across the room.
+you hold), and the channel/toggle buttons are single-shot. The acknowledge-blink
+behaves identically, so the light you're steering still identifies itself from
+across the room.
 
 > With no receiver fitted, the input pin idles high on its pull-up and nothing
 > ever decodes — leaving `GLIM_IR` enabled costs nothing.
@@ -81,10 +87,11 @@ steering from across the room.
 - **The blink is the display.** With no screen, the acknowledge-blink is how the
   device tells you which channel it thinks you mean. Only the selected channel
   blinks; the others hold steady.
-- **The pixel is the other half.** A WS2812 by the joystick holds the selected
-  channel's colour (amber / green / blue), so "which light am I steering?" is
-  answerable at a glance, not just at the moment you flick. When every channel is
-  off it fades to a dim glow — a locator in a dark room.
+- **The channels do their own indicating.** Selecting one blinks *that light*, so
+  the thing you're about to adjust identifies itself — no colour code to learn.
+  A small indicator LED on each driver's DIM line mirrors that channel's
+  brightness, giving a live three-bar meter at the control for no extra pins.
+  The status LED, meanwhile, means one thing only: the system is on.
 - **It remembers.** State is written to EEPROM a few seconds after you stop, and
   restored on boot — so a wall switch (or a power blip) brings the room back the
   way you left it, not black or blazing.
@@ -96,9 +103,9 @@ steering from across the room.
 - **Nothing snaps.** On/off toggles, all-off, and the boot restore all *fade*
   over a couple hundred ms rather than jumping. The fade is fast enough that it
   never lags the live joystick ramp.
-- **Smooth at the bottom.** The 8-bit PWM is temporally dithered (sigma-delta),
-  buying extra effective resolution so deep dimming glides instead of
-  stair-stepping through visible steps.
+- **Smooth at the bottom.** The PWM is **16-bit**, so the dimmest step is set by
+  what the LED driver can honestly reproduce (~1640:1) rather than by the timer.
+  Deep dimming glides instead of stair-stepping.
 
 ## Tuning
 
@@ -113,9 +120,10 @@ most likely to touch:
 | `JOY_DEADZONE` | How far you can wobble around centre before anything happens. Raise it if a channel drifts on its own. |
 | `JOY_X_THRESH` / `JOY_X_REARM` | How hard you must flick to change channel, and how far back to centre before the next flick counts. |
 | `DEFAULT_LEVEL` | Brightness a channel comes up at on first boot / first tap-on. |
-| `PWM_MIN_DUTY` | The dimmest lit step. Raise it if low settings flicker or drop out on the PT4115. |
-| `FADE_MS` | Fade time for on/off toggles and the boot restore. Lower = snappier. |
-| `DITHER_BITS` | Extra dimming resolution (0 disables). Higher is smoother but the dither pattern slows — keep ≤3 at ~1 kHz PWM to stay flicker-free. |
+| `DRIVER_MIN_ON_NS` | The LED driver's minimum on-time (~2 µs for the PT4115), which sets the dimmest lit step. Raise it if low settings flicker or stop being monotonic. |
+| `FADE_MS` | Fade time for on/off toggles. Lower = snappier. |
+| `BOOT_FADE_MS` | How long the power-up fade takes, regardless of scene brightness. |
+| `STATUS_LED_DIV` | Status-LED brightness (software PWM, "lit 1 ms in every N"). Raise it if the indicator is distracting at night. |
 | `SW_LONGPRESS_MS` | How long "hold" is before it means all-off. |
 | `FACTORY_HOLD_MS` | How long the button must be held *at power-on* to wipe to defaults. |
 

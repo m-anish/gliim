@@ -45,7 +45,7 @@ does the same job at campus scale. Part of the
 
 | Part | Role |
 |------|------|
-| ATtiny814 | brains — 3× 16-bit PWM, 2× ADC, button, IR, status pixel |
+| ATtiny814 | brains — 3× 16-bit PWM, 2× ADC, button, IR, status LED |
 | 3× PT4115 | buck LED drivers, one per channel (up to ~5 LEDs each) |
 | Joystick module | cheap 5-pin analog thumbstick (GND/5V/X/Y/SW) |
 | Buck module | steps the 6–30 V supply down to 5 V for the logic |
@@ -114,7 +114,7 @@ persistence. Hardware is a hand-soldered board. The whole design is written to
 survive a move: pins and behaviour are all in `config.h`.
 
 **rev2 is specified** — ATtiny3216, 16-bit PWM (~6× deeper dimming), USB-C PD
-power, on-board IR remote and status pixel:
+power, on-board IR remote and a Qwiic I²C port:
 [`hardware/rev2/`](hardware/rev2/README.md).
 
 Where it goes next — indicator LEDs, IR remote, up to 6 channels on the same

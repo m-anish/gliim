@@ -59,8 +59,10 @@
 #define JOY_Y_PIN  PIN_PA1   // AIN1  (up/down    → brightness)
 #define JOY_SW_PIN PIN_PA7
 
-#define STATUS_PIXEL_PIN PIN_PA6   // WS2812 — as physically built on rev1
-#define GLIM_STATUS_BICOLOR 0
+// rev1 has a WS2812 physically fitted; it is now driven as a plain "system on"
+// lamp in a single colour, the same meaning as rev2's discrete LED.
+#define STATUS_PIXEL_PIN PIN_PA6
+#define GLIM_STATUS_LED  0
 
 // No hardware UART here: PB2 is USART0's TXD but it's LED ch3, and USART0's only
 // alternate (PA1) is the joystick. Debug bit-bangs over SoftwareSerial instead.
@@ -113,16 +115,18 @@
 #define JOY_Y_PIN  PIN_PA2   // AIN2  (up/down    → brightness; unused with the ladder)
 #define JOY_SW_PIN PIN_PA7
 
-// Status indicator: a plain **bicolor LED** (3-pin, common cathode) rather than
-// a WS2812. Two GPIOs, no library, no bit-bang — which also removes the ~30 µs
-// of interrupts-disabled time the pixel needed, a latent hazard for the IR
-// decoder. And it works on any supply rail, unlike the WS2812's 3.5 V minimum.
+// Status indicator: **one plain LED, meaning "system on"**. Nothing more.
 //
-// Colour encodes the selected channel; software PWM sets the brightness.
-#define GLIM_STATUS_BICOLOR 1
-#define STATUS_LED_R_PIN    PIN_PC1
-#define STATUS_LED_G_PIN    PIN_PC2
-#define STATUS_LED_ANODE_COMMON 0   // 0 = common cathode (drive HIGH to light)
+// It does not encode the selected channel, because the channels can say that
+// themselves and say it better: selecting one makes *that light* blink
+// (`ackBlink`), and a small indicator LED on each driver's DIM line mirrors that
+// channel's brightness for free — no pins, since it just hangs off the PWM
+// output. See hardware/rev2/README.md §7.
+//
+// One GPIO, one resistor, no library, no bit-bang, any supply rail.
+#define GLIM_STATUS_LED       1
+#define STATUS_LED_PIN        PIN_PC1
+#define STATUS_LED_ACTIVE_LOW 0     // 1 if you wire it to VDD instead of GND
 
 // Hardware USART0, TX only (see above). Wire the adapter's RX to PB2.
 #define GLIM_DEBUG_HW_SERIAL 1
@@ -244,33 +248,30 @@
 // the one thing the per-channel indicator LEDs can't tell you, since they mirror
 // level. When every channel is off it drops to a dim glow, so the stick is still
 // findable in a dark room.
-// rev1 has a WS2812 fitted; rev2 uses a bicolor LED (see its pin map).
-#if GLIM_STATUS_BICOLOR
+// One status concept, two renderings: rev1 lights its fitted WS2812, rev2 a
+// plain LED. Both mean the same thing — the system is powered and running.
+#if GLIM_STATUS_LED
 #define GLIM_STATUS_PIXEL 0
 #else
 #define GLIM_STATUS_PIXEL 1
 #endif
 
 // Colour per channel, 0xRRGGBB.
-#define STATUS_COLOR_CH1 0xFF2000   // amber   (WS2812 builds)
-#define STATUS_COLOR_CH2 0x00FF30   // green
-#define STATUS_COLOR_CH3 0x0040FF   // blue
+// WS2812 builds (rev1): the colour and brightness of the "system on" lamp.
+#define STATUS_COLOR_ON  0x20180A   // warm, dim — it's an indicator, not a light
 
-// Bicolor builds: with two emitters you get three colours — red, green, and
-// both-on (amber). Channels 4-6, if populated, repeat those three but blinking,
-// so one 2-pin part still distinguishes all six.
-//   ch1 red · ch2 green · ch3 amber · ch4 red blink · ch5 green blink · ch6 amber blink
-//
-// Brightness is software PWM, expressed as "lit for 1 ms in every N": N=2 is a
-// 50% duty at 500 Hz, N=8 is 12.5% at 125 Hz. Both are far above flicker fusion
-// for a small indicator, and the LED needs no current beyond its resistor.
-#define STATUS_LED_DIV_ON   2    // normal
-#define STATUS_LED_DIV_IDLE 8    // every channel off — a locator glow
-#define STATUS_LED_BLINK_MS 700  // blink period for channels 4-6
+// Plain-LED builds (rev2): brightness is software PWM, expressed as "lit for
+// 1 ms in every N". N=2 is 50 % at 500 Hz, N=8 is 12.5 % at 125 Hz — both far
+// above flicker fusion for a small indicator, and no timer is consumed.
+// Raise N if the LED is distracting at night.
+#define STATUS_LED_DIV 8
 
-// Pixel brightness (0..255): normal, and when all channels are off.
-#define STATUS_BRIGHT      40
-#define STATUS_BRIGHT_IDLE 4
+// Set to 1 for a slow pulse instead of a steady lamp. Steady says "powered";
+// pulsing says "firmware is running", which distinguishes a live board from one
+// the watchdog is resetting. Handy on the bench, busier in a bedroom.
+#define GLIM_STATUS_HEARTBEAT 0
+#define STATUS_HEARTBEAT_MS 2000
+
 
 // ---------------------------------------------------------------------------
 // IR remote (NEC protocol, 38 kHz)

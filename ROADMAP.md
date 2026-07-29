@@ -13,9 +13,9 @@ app and no network. Enhancements are welcome as long as they respect that.
   belongs in [lokki](https://github.com/m-anish/lokki), not here. That boundary
   is what keeps glim on a $0.60 MCU.
 
-Everything below is sized to an ATtiny814-class part. rev1 is now at **74 % of
+Everything below is sized to an ATtiny814-class part. rev1 is now at **71 % of
 flash and 27 % of RAM**, and every pin is allocated — so on rev1 both headroom
-*and* pins are the constraint. rev2's ATtiny3216 resets that (19.6 % of 32 KB).
+*and* pins are the constraint. rev2's ATtiny3216 resets that (17.5 % of 32 KB).
 
 ## Resource budget (what's actually free)
 
@@ -27,7 +27,7 @@ Current pin usage and what's left to build on:
 | PA1 / PA2 | Joystick Y / X (ADC) | — |
 | PA3 | **free** | — |
 | PA4 / PA5 | **free** | debug SoftwareSerial in `--debug` builds |
-| PA6 | Status pixel (WS2812) | ✅ fitted |
+| PA6 | Status LED (WS2812, as fitted) | ✅ — driven as a plain "system on" lamp |
 | PA7 | Joystick SW | — |
 | PB0/PB1/PB2 | LED PWM (TCA0 WO0–WO2) | 16-bit; + indicator LEDs piggyback here |
 | PB3 | IR receiver | ✅ implemented |
@@ -53,7 +53,7 @@ firmware — the ✅ rows below.**
 
 | Item | Why | Notes |
 |------|-----|-------|
-| ✅ **Temporal dithering** | Biggest perceived-quality win. 8-bit PWM is coarse at the bottom; dithering between adjacent duty steps buys extra effective bits, so deep dimming stops stair-stepping. | *Done:* first-order sigma-delta in the `TCA0_HUNF` ISR, `DITHER_BITS` in config. |
+| ⤴ **Temporal dithering** | Was the biggest win at 8-bit: dithering between adjacent duty steps bought extra effective bits. | *Superseded.* Shipped, then **removed** when the LEDs moved to 16-bit PWM, which exceeds what dithering bought and costs no flicker margin. Still the right tool if you ever take the 6-channel/8-bit option — see rev2 §4. |
 | ✅ **Soft transitions** | Fade in/out on power-up, toggle, and scene changes instead of snapping. Feels premium, easier on the eye at night. | *Done:* setpoint→slewed-display model, `FADE_MS` in config. |
 | ✅ **Watchdog** | It's an unattended, installed device. WDT auto-recovers from any hang. | *Done:* ~2 s WDT, kicked in `loop()`, `GLIM_WATCHDOG` in config. |
 | ✅ **EEPROM struct versioning** | A `version` byte beside the magic so future firmware can migrate saved state instead of resetting the room to defaults on update. | *Done:* `EE_VERSION` in the persist struct. |
@@ -69,15 +69,15 @@ Small parts, one or two pins each. Pick à la carte.
 | Item | Cost | Value | Detail |
 |------|------|-------|--------|
 | **3 channel indicator LEDs** | LED + 1 kΩ per channel, **0 pins** | Live brightness meter at the joystick | Piggyback on PB0/PB1/PB2. Brightness mirrors each channel's level for free. Shows *level*, not *selection*. |
-| **1 status LED / pixel** | 1 pin (PA6) | Persistent "which channel is selected" | A single bicolor LED, or one WS2812 (megaTinyCore has `tinyNeoPixel`) → selected channel = color, plus all-off/booting states. This is the missing half of the indicator story. |
+| ✅ **1 status LED** | 1 pin (PA6) | "the system is on" | *Done.* Deliberately **not** channel-coded — selecting a channel blinks that light, and the per-channel indicators show level, so a shared indicator has nothing left to say. rev1 drives its fitted WS2812 as a plain lamp; rev2 uses one discrete LED. |
 | ✅ **IR receiver** | 3-pin TSOP (e.g. 38 kHz), 1 pin | **Couch control** — huge for a home | *Done:* falling-edge ISR decoding NEC on PB3, plus a learn mode binding six actions to any remote. |
 | **Ambient light sensor** | LDR/phototransistor + resistor, 1 ADC pin (PA6) | Auto-cap brightness in daylight | Optional, behind a config flag — glim stays manual-first. (This is a lokki idea scaled down.) |
 | **PIR motion sensor** | 3-pin PIR module, 1 pin | Auto-on/off for halls, utility spaces | Turns glim "automatic"; keep it opt-in so it never surprises someone who just wants a manual dimmer. |
 
-> Recommended Tier-1 combo: **3 indicator LEDs + 1 status pixel + IR receiver.**
-> Three cheap parts, three pins (PA6 + one for IR, indicators are free), and it
-> covers the two real gaps — persistent selection feedback and across-the-room
-> control — without touching the minimalist spirit.
+> Recommended Tier-1 combo: **3 indicator LEDs + 1 status LED + IR receiver.**
+> Three cheap parts, two pins (indicators are free — they hang off the PWM
+> outputs), and it covers the two real gaps: per-channel level at a glance, and
+> across-the-room control.
 
 ## Tier 2 — rev2 PCB ✅ specified
 
@@ -86,19 +86,19 @@ Small parts, one or two pins each. Pick à la carte.
 [input circuits](hardware/rev2/input.md).
 
 Headline: ATtiny3216, **16-bit PWM** (the PT4115's real floor is a 2 µs on-time,
-so 8-bit was wasting ~6× of dimming depth), USB-C PD power, on-board IR and
-status pixel, and 10 kΩ DIM pulldowns so it stops flashing at power-up.
+so 8-bit was wasting ~6× of dimming depth), USB-C PD power, on-board IR, a Qwiic
+I²C port, and 10 kΩ DIM pulldowns so it stops flashing at power-up.
 
 The original sketch of this tier, for reference:
 
 A proper board is the natural home for the Tier-1 add-ons plus the boring
 robustness a wall-installed device wants.
 
-- **Consolidate** the indicator LEDs, status pixel, and IR receiver onto the PCB.
+- **Consolidate** the indicator LEDs, status LED, and IR receiver onto the PCB.
 - **Input protection:** reverse-polarity (P-FET or series diode), input fuse, a
   TVS on the DC rail. Screw terminals for the 6–30 V in and each LED string.
 - **Up to 6 channels** using the full TCA0 split (adds PA3/PA4/PA5 as WO3–WO5
-  alongside the existing PB0–PB2). The joystick already wraps through channels,
+  alongside the three the board already carries). The joystick already wraps through channels,
   so the UX scales for free. Trade-off: split mode is 8-bit, so you'd give up
   the 16-bit dimming depth — for a dimmer that's the wrong trade, which is why
   rev2 ships 3 × 16-bit.

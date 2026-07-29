@@ -15,8 +15,9 @@ Firmware is C++ on **megaTinyCore**, built with **PlatformIO**, flashed over
 
 ## The pin map is load-bearing — do not "simplify" it
 
-LEDs are on **PB0/PB1/PB2**, joystick on **PA1/PA2** (X/Y) + **PA7** (SW), IR on
-**PB3**, status pixel on **PA6**. Forced by silicon, not preference (datasheet
+On **rev1**: LEDs on **PB0/PB1/PB2**, joystick on **PA1/PA2** (X/Y) + **PA7**
+(SW), IR on **PB3**, status LED on **PA6**. (rev2 differs — see `config.h` and
+`hardware/rev2/README.md`.) Forced by silicon, not preference (datasheet
 DS40001912A, Table 5-1):
 
 - **PA1/PA2 cannot do PWM.** No timer reaches them. TCA0 WO0/1/2 are hardwired to
@@ -37,16 +38,19 @@ in `docs/`.
   duty to the *buffered* `CMP0BUF/CMP1BUF/CMP2BUF` (PB0/PB1/PB2), higher =
   brighter, 305 Hz at 20 MHz (DIV1).
 
-**The LEDs must stay on PB0/PB1/PB2.** Normal mode is the only way to get 16-bit,
-and normal mode only has WO0–WO2, which are hardwired to PB0/PB1/PB2. Moving them
-back to PA3/PA4/PA5 forces split mode and an 8-bit floor of 0.39% — 6.4× coarser
-than the PT4115 can resolve (its floor is a ~2 µs on-time, i.e. 40 counts of
-65536 at 305 Hz). That's the whole reason for the pin choice.
+**The LEDs must stay on WO0–WO2.** Normal mode is the only way to get 16-bit, and
+normal mode has only those three outputs. Using WO3–WO5 instead forces split mode
+and an 8-bit floor of 0.39% — 6.4× coarser than the PT4115 can resolve (its floor
+is a ~2 µs on-time, i.e. 40 counts of 65536 at 305 Hz). That is the whole reason
+for the pin choice. *Which* pins WO0–WO2 land on is a `PORTMUX.CTRLC` choice and
+differs per board — see above.
 
-Knock-on effect: PB2 is USART0 TXD and its only alternate (PA1) is the joystick,
-so there is no hardware serial. `GLIM_DEBUG` uses SoftwareSerial on PA4, and
-**IR is auto-disabled in debug builds** (config.h forces it off) because
-SoftwareSerial's dispatcher defines the PORT vectors the IR ISR needs.
+Knock-on effect **on rev1 only**: PB2 is USART0 TXD and its only alternate (PA1)
+is the joystick, so rev1 has no hardware serial. `GLIM_DEBUG` uses SoftwareSerial
+on PA4 there, and **IR is auto-disabled in rev1 debug builds** because
+SoftwareSerial's dispatcher defines the PORT vectors the IR ISR needs. rev2 dodges
+both: moving the LEDs to PB3–PB5 frees PB2 for a real USART, so IR and telemetry
+coexist.
 
 The clock is **20 MHz** (in spec at 5 V per datasheet Table 34-3). Changing
 `board_build.f_cpu` requires a re-fuse (`utils/flash.sh --fuses`), not just a
@@ -84,12 +88,15 @@ utils/flash.sh --port /dev/... --slow   # override port / drop to 115200
 
 **One source, two boards.** `GLIM_BOARD` in `config.h` (1 = rev1/ATtiny814,
 2 = rev2/ATtiny3216) selects the pin map; `--rev2` sets it via `-DGLIM_BOARD=2`.
-Both parts put the LEDs on PB0/PB1/PB2 — only the peripherals move, onto PORTC
-where rev2 has room. Keep new pins inside that `#if`, not hardcoded.
+Both drive the same three timer outputs (TCA0 WO0–WO2) — but on **different
+pins**: rev1 takes the defaults PB0/PB1/PB2, rev2 relocates all three to
+PB3/PB4/PB5 via `PORTMUX.CTRLC` so PB0/PB1 can be I²C and PB2 the UART. Keep new
+pins inside that `#if`, never hardcoded.
 
 `--debug` works by passing `-DGLIM_DEBUG=1`, which is why `GLIM_DEBUG` in
 `config.h` is wrapped in `#ifndef` — keep that guard if you add build-time
-toggles. Note `--monitor` needs the adapter's RX on **PB2**, not the UPDI node.
+toggles. Note `--monitor` needs the adapter's RX on the debug TX pin (**rev1 PA4,
+rev2 PB2**), not the UPDI node.
 
 Never set `board_hardware.updipin` to anything but `updi` — it would lock UPDI
 out of the chip.

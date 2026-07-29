@@ -25,10 +25,10 @@ Companion documents:
 | 3 | **10 kΩ pulldown on every DIM line** | The PT4115 pulls DIM up internally: **a floating DIM pin means full brightness.** rev1 flashes at full while the MCU boots. |
 | 4 | **USB-C PD inlet** | A decoy board gives 9/12/15/20 V from any laptop charger. No barrel jack, no wall-wart hunt. |
 | 5 | **IR receiver on-board** | Couch control. The single most useful addition for the actual use case. |
-| 6 | **Status LED on-board** | rev1 proved it: with no screen, "which channel am I steering?" needs an answer that persists. A plain **bicolor LED**, not a WS2812 — see §7. |
+| 6 | **Status LED on-board** | One LED, one meaning: system on. The channels indicate themselves — see §7. |
 | 7 | **Input is a populate-time choice** | Joystick module *or* 5-way tactile + ladder, sharing one ADC pin. |
 | 8 | **Qwiic I²C connector** | PB0/PB1, via a 3.3 V LDO + level shifter. Turns the ambient-light sensor and friends into plug-in modules. §5. |
-| 9 | **WS2812 → bicolor LED** | No interrupts-off bit-bang next to the IR decoder, works at any rail, and smaller. §7. |
+| 9 | **WS2812 → one plain LED** | No interrupts-off bit-bang beside the IR decoder, works at any rail, one pin instead of two, and smaller firmware. §7. |
 | 10 | **Reverse-polarity + fusing on the LED rail** | It's going in someone's home. |
 
 ---
@@ -120,7 +120,7 @@ dithering) are quantified in §4.
        │            ┌──────┴───────┐                  │
        └────────────┤  ATtiny3216  ├──────────────────┘
                     └──┬───┬───┬───┘
-              PA1/PA7 ─┘   │   ├─ PC1/PC2 → bicolor status LED
+              PA1/PA7 ─┘   │   ├─ PC1 → status LED ("system on")
               input        │   └─ PC0 ← TSOP38238 IR receiver
         (joystick OR       └───── PB0/PB1 → Qwiic I²C (via 3V3 LDO
          5-way ladder)                       + level shifter, §5)
@@ -147,7 +147,7 @@ identical** and picking one over the other is purely a flash-size decision.
 | Variant | txy4 | txy6 | **txy6** (same pinout as 1616) |
 | Package | SOIC-14 | SOIC-20 | **SOIC-20** (hand-solderable) |
 
-Firmware today is **6.4 KB — 19.6 % of the 3216's flash**, against 74 % of the
+Firmware today is **5.7 KB — 17.5 % of the 3216's flash**, against 71 % of the
 814's. That headroom is the point: IR learn mode, the ladder decoder, scenes and
 whatever else can land without ever re-running this arithmetic.
 
@@ -180,8 +180,8 @@ six.
 | 10 | PB1 | **I²C SDA** | **I²C SDA** | TWI0 SDA → Qwiic |
 | 11 | PB0 | **I²C SCL** | **I²C SCL** | TWI0 SCL → Qwiic |
 | 12 | PC0 | **IR receiver** | **IR receiver** | TSOP38238 OUT |
-| 13 | PC1 | **Status LED — red** | **Status LED — red** | bicolor LED, anode |
-| 14 | PC2 | **Status LED — green** | **Status LED — green** | bicolor LED, anode |
+| 13 | PC1 | **Status LED** | **Status LED** | single LED — "system on" |
+| 14 | PC2 | *free* | *free* | |
 | 15 | PC3 | *free* | *free* | (WO3 alt — leave clear) |
 | 16 | PA0 | **UPDI** | **UPDI** | 1 kΩ series to header |
 | 17 | PA1 | **Joystick X / ladder** | same | AIN1 |
@@ -190,8 +190,8 @@ six.
 | 20 | **GND** | GND | GND | |
 
 Only PA3/PA4/PA5 change role between the two builds, so **one PCB serves both** —
-populate three drivers or six and let firmware pick the mode. PA6 and PC3 stay
-free either way.
+populate three drivers or six and let firmware pick the mode. PA6, PC2 and PC3
+stay free either way.
 
 #### Why the LEDs are on PB3/PB4/PB5, not PB0/PB1/PB2
 
@@ -338,7 +338,7 @@ you give up is flicker margin: 152 Hz is above flicker fusion, but stroboscopic
 artifacts (a waving hand, a phone camera) get noticeably more visible.
 
 **2. ~~The WS2812 doesn't like it.~~** *This objection is gone* — the status
-indicator is now a plain bicolor LED (§7), which works at any rail. It was the
+indicator is now a single plain LED (§7), which works at any rail. It was the
 WS2812's 3.5 V minimum that made this awkward.
 
 **So the only remaining question is the clock**, and it is a genuine judgement
@@ -461,40 +461,66 @@ learn mode, store codes in EEPROM), so no specific remote SKU is load-bearing �
 including the user's own TV remote. A 44-key RGB-strip remote is the best default:
 it already has Bright± / ON / OFF / presets.
 
-### Status LED — bicolor, not a WS2812
+### Status LED — one LED, one meaning
 
-A plain **3-pin common-cathode bicolor LED** on **PC1 (red)** and **PC2 (green)**,
-each through its own resistor. Two GPIOs, no library, no addressable protocol.
+**A single LED on PC1** through a resistor. It means exactly one thing: *the
+system is on*. It does not encode the selected channel, and that is the point.
 
-rev1 used a WS2812 and it worked, but the discrete part is better here on three
-counts:
+The channels indicate themselves, in two ways that are strictly better than a
+shared indicator:
 
-1. **No interrupts-off window.** The WS2812 bit-bang blocks interrupts for ~30 µs
-   per update — a latent hazard for the IR decoder, whose ISR times edges to a
-   few µs. A GPIO write has no such cost.
-2. **Rail-agnostic.** The WS2812 wants V_DD ≥ 3.5 V, which is what pinned rev2
-   to 5 V in §5. An LED and two resistors work at any rail.
-3. **Smaller.** Dropping `tinyNeoPixel` saved ~280 B net after the replacement
-   code; a discrete LED is also cheaper than a WS2812.
+1. **Selection** — picking a channel blinks *that light* (`ackBlink`). The thing
+   you're about to adjust identifies itself, across the room, with no legend to
+   learn and no colour code to remember.
+2. **Level** — a small indicator LED on each driver's **DIM line** mirrors that
+   channel's brightness, because it hangs directly off the PWM output. Three
+   channels give you a live three-bar meter at the control, for **zero extra
+   pins**. See *Channel indicator LEDs* below.
 
-Two emitters give three colours, which is exactly the 3-channel case — and
-channels 4–6 reuse them blinking, so one part still distinguishes all six:
+So the status LED is just a lamp, and one GPIO is all it costs. Brightness is
+software PWM (`STATUS_LED_DIV`, "lit 1 ms in every N" — default 12.5 % at
+125 Hz), so it consumes no timer and can be turned down if it's distracting at
+night. Set `STATUS_LED_ACTIVE_LOW` if you wire it to V_DD rather than GND.
 
-| Channel | 1 | 2 | 3 | 4 | 5 | 6 |
-|---|---|---|---|---|---|---|
-| | red | green | amber | red *blink* | green *blink* | amber *blink* |
+`GLIM_STATUS_HEARTBEAT` optionally makes it pulse slowly instead of sitting
+steady. Steady says "powered"; pulsing says "firmware is running", which
+distinguishes a live board from one the watchdog keeps resetting. Off by
+default — useful on the bench, busier in a bedroom.
 
-Brightness is software PWM — lit for 1 ms in every N — so no timer is consumed:
-`N = 2` (50 %, 500 Hz) normally, `N = 8` (12.5 %, 125 Hz) when every channel is
-off, which is the dark-room locator glow. Both are well above flicker fusion for
-a small indicator. Tune with `STATUS_LED_DIV_*` in `config.h`.
+> During **IR learn mode** the status LED is the only channel of feedback, so it
+> speaks in blink *counts* rather than colours: *n+1* blinks to prompt for
+> action *n*, one long flash to accept, four rapid flashes to reject a duplicate,
+> three slow flashes when saved. Identical on rev1's WS2812 and rev2's plain LED.
 
-Resistors: ~1 kΩ per leg at 5 V gives a comfortable ~3 mA. Set
-`STATUS_LED_ANODE_COMMON` to 1 in `config.h` if you fit a common-**anode** part.
+This replaced a WS2812. Three reasons, in order of how much they matter:
 
-### Channel indicator LEDs
-LED + 1 kΩ to GND on each **DIM** line — **zero extra pins**, and brightness
-mirrors each channel's level for free. Keep them on the MCU side of any series
+- **No interrupts-off window.** The WS2812 bit-bang blocks interrupts ~30 µs per
+  update, right next to an IR decoder whose ISR times edges to a few µs.
+- **Rail-agnostic.** The WS2812 needs V_DD ≥ 3.5 V, which is what pinned rev2 to
+  5 V in §5. An LED and a resistor work anywhere.
+- **Smaller and simpler.** Dropping `tinyNeoPixel` and the colour logic saved
+  **434 B** on rev2 and freed a pin.
+
+### Channel indicator LEDs — the other half of the story
+
+**LED + 1 kΩ to GND on each driver's DIM line.** Zero extra pins: the line is
+already a PWM output, so the indicator's brightness *mirrors that channel's
+level* for free — a live three-bar meter beside the control.
+
+This is what lets the status LED stay dumb. Between "that light just blinked at
+me" and "this bar shows how bright that channel is", the channels answer both
+questions a channel-coded indicator would have tried to answer.
+
+It does not disturb the DIM signal:
+
+| MCU state | DIM line | Indicator |
+|---|---|---|
+| drives HIGH | 5 V — the MCU sources ~3 mA extra | lit |
+| drives LOW | 0 V | off |
+| high-Z (boot) | 0.24 V, held by the 10 kΩ pulldown | off — 0.24 V is far below V_f |
+
+That last row matters: the indicator can't defeat the pulldown, because an LED
+simply doesn't conduct at 0.24 V. Tap it on the **MCU side** of any series
 resistor in the DIM path.
 
 ### Programming
@@ -519,7 +545,8 @@ anything but UPDI.
 | 9 | USB-C PD decoy board | 1 | jumper to 20 V |
 | 10 | 5 V buck module (LM2596) | 1 | from the LED rail |
 | 11 | TSOP38238 | 1 | + 100 Ω, 4.7 µF, 100 nF |
-| 12 | Bicolor LED (3-pin, common cathode) + 2 × 1 kΩ | 1 | status indicator — §7 |
+| 12 | LED + 1 kΩ | 1 | status indicator, "system on" — §7 |
+| 12b | LED + 1 kΩ | 3 (or 6) | per-channel indicators on the DIM lines — §7 |
 | 13 | 5-way tactile switch | 1 | *or* joystick module — see input doc |
 | 14 | Ladder resistors 470 Ω/1 k/2.2 k/4.7 k, 1 % | 1 ea | if ladder fitted |
 | 15 | Indicator LED + 1 kΩ | 3 ea | optional |
@@ -561,7 +588,8 @@ Current footprint: **6 430 B of 32 768 (19.6 %)**, 137 B of 2 048 RAM (6.7 %).
   tiers stay correct.
 - **IR NEC decode + learn mode** — falling-edge ISR, six learnable actions,
   codes in EEPROM.
-- Status indicator (WS2812 on rev1, **bicolor LED** on rev2), soft transitions,
+- Status indicator (WS2812 on rev1, **plain LED** on rev2 — same "system on"
+  meaning either way), soft transitions,
   fixed-duration boot fade, watchdog,
   EEPROM struct versioning, factory-reset gesture.
 

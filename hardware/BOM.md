@@ -20,7 +20,7 @@ These change the BOM; defaults in brackets are what the rest of this doc assumes
 | LEDs per channel | up to 5 | LED count, current budget, driver Rsense |
 | LED type | COB / star / strip | Load, mounting |
 | Remote strategy | learn-any-NEC | firmware only; any remote works |
-| Status pixel? | optional | 1 pin + 1 part |
+| Status LED? | optional | 1 pin + 1 part |
 
 ## Core dimmer (rev1)
 
@@ -61,8 +61,11 @@ channel's level for free — a live 3-bar meter by the joystick.
 | 11 | 1 kΩ resistor | 3 | ~3 mA @ 5 V; negligible load on the pin |
 
 Wiring per channel: **PWM pin → LED anode, LED cathode → 1 kΩ → GND.** Lights when
-the pin is high, so brightness tracks duty. (Shows *level*, not *which channel is
-selected* — that's what Add-on C is for.)
+the pin is high, so brightness tracks duty.
+
+Together with the acknowledge-blink — selecting a channel blinks *that light* —
+this covers both questions an indicator has to answer, which is why the status
+LED (Add-on C) can stay a dumb "system on" lamp.
 
 ## Add-on B — IR remote
 
@@ -82,20 +85,21 @@ selected* — that's what Add-on C is for.)
 - **Noise:** three switching drivers sit nearby. Use the 100 Ω + 4.7 µF supply
   filter, the 100 nF at the receiver pins, and mount the TSOP away from the
   drivers/inductors. Prefer TSOP38238 over VS1838B for AGC/noise immunity.
-- **Pin:** IR OUT → **PB3** (physical pin 6). PA6 is the status pixel; PB0–PB2 are the LED PWM outputs.
+- **Pin:** IR OUT → **PB3** (physical pin 6). PA6 is the status LED; PB0–PB2 are the LED PWM outputs.
 
-## Add-on C — status pixel ✅ fitted
+## Add-on C — status LED ✅ fitted
 
-The one thing three mirror-LEDs can't show is *which* channel is selected. A
-single addressable LED covers it: colour = selected channel, dimming to a
-locator glow when everything is off.
+One lamp meaning "the system is on". Deliberately not channel-coded: selecting a
+channel blinks *that light*, and the per-channel indicators above show level, so
+a shared indicator has nothing useful left to say. rev1 has a WS2812 fitted and
+drives it as a plain single-colour lamp; rev2 uses one discrete LED.
 
 | # | Part | Qty | Role |
 |---|------|-----|------|
-| 16 | WS2812B (or a 2-color LED + 2× 1 kΩ) | 1 | selection / status indicator |
+| 16 | WS2812B *(as fitted)* — or simply an LED + 1 kΩ | 1 | "system on" lamp |
 
-- **Pin:** data → **PA6**. megaTinyCore ships `tinyNeoPixel` for WS2812.
-- Colours and brightness are `STATUS_*` in `config.h`.
+- **Pin:** → **PA6**. megaTinyCore ships `tinyNeoPixel` for the WS2812 variant.
+- Colour/brightness knobs are `STATUS_*` in `config.h`.
 
 ## Pin allocation after add-ons
 
@@ -105,7 +109,7 @@ locator glow when everything is off.
 | PA1 / PA2 | 11 / 12 | Joystick Y / X (ADC) |
 | PA3 | 13 | *free* |
 | PA4 / PA5 | 2 / 3 | *free* — debug SoftwareSerial TX/RX in `--debug` builds |
-| PA6 | 4 | **Status pixel data** (Add-on C) |
+| PA6 | 4 | **Status LED** (Add-on C) |
 | PA7 | 5 | Joystick SW |
 | PB0 / PB1 / PB2 | 9 / 8 / 7 | **LED PWM** (TCA0 WO0–WO2, 16-bit) **+ indicator LEDs** (Add-on A) |
 | PB3 | 6 | **IR receiver OUT** (Add-on B) |
@@ -117,6 +121,6 @@ and [../ROADMAP.md](../ROADMAP.md) for what comes next.
 
 ## Rough cost (electronics, excl. PSU & LED load)
 
-Core ≈ $8–10 · indicator LEDs ≈ $0.3 · IR add-on ≈ $2–3 · status pixel ≈ $0.3.
+Core ≈ $8–10 · indicator LEDs ≈ $0.3 · IR add-on ≈ $2–3 · status LED ≈ $0.3.
 Call it **~$11–14** of parts for a fully-featured unit — the PSU and the light
 itself dominate the real cost.

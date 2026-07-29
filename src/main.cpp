@@ -3,7 +3,8 @@
 //   up / down     ramp the selected channel brighter / dimmer (speed follows
 //                 how far you push)
 //   left / right  select which of the 3 channels you're controlling; the newly
-//                 selected channel blinks once so you know which light answered
+//                 selected channel blinks once, so the light itself says which
+//                 one answered — no channel-coded indicator required
 //   tap switch    toggle the selected channel on / off (fades)
 //   hold switch   toggle all channels on / off (fades)
 //   hold 3 s      enter IR learn mode — see irLearn()
@@ -354,85 +355,77 @@ static void saveState() {
 // Status pixel — colour says which channel the joystick is steering.
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Status indicator — one meaning: "the system is on".
+// ---------------------------------------------------------------------------
+//
+// Deliberately *not* channel-coded. The channels announce themselves better than
+// a shared indicator can: selecting one blinks that light (ackBlink), and a small
+// indicator LED hung on each driver's DIM line mirrors that channel's brightness
+// for free — no extra pins, since it just sits on the PWM output. So this is only
+// a lamp, rendered on whatever the board has fitted.
+
 #if GLIM_STATUS_PIXEL
 static uint8_t pixelBuf[3];
 static tinyNeoPixel statusPixel = tinyNeoPixel(1, STATUS_PIXEL_PIN, NEO_GRB, pixelBuf);
 
-static void pixelRGB(uint8_t r, uint8_t g, uint8_t b) {
-  statusPixel.setPixelColor(0, r, g, b);
+static void statusInit() { pinMode(STATUS_PIXEL_PIN, OUTPUT); }
+
+// The WS2812 bit-bang runs with interrupts off for ~30 µs, so only write when
+// the state actually changes — the IR decoder times edges to a few µs and would
+// rather not be interrupted more often than necessary.
+static void statusSet(bool on) {
+  static int8_t last = -1;
+  if ((int8_t)on == last) return;
+  last = on;
+  statusPixel.setPixelColor(0, on ? (uint8_t)((STATUS_COLOR_ON >> 16) & 0xFF) : 0,
+                               on ? (uint8_t)((STATUS_COLOR_ON >>  8) & 0xFF) : 0,
+                               on ? (uint8_t)( STATUS_COLOR_ON        & 0xFF) : 0);
   statusPixel.show();
 }
 
-// Only pushed when it actually changes: the WS2812 bit-bang runs with
-// interrupts off for ~30 µs, and there's no reason to disturb the IR decoder
-// more often than necessary.
-static void updateStatusPixel(bool force) {
-  static uint8_t lastSel = 0xFF;
-  static bool    lastIdle = false;
-
-  bool idle = true;
-  for (uint8_t c = 0; c < NUM_CHANNELS; c++)
-    if (!muted[c] && level[c] > 0) { idle = false; break; }
-
-  if (!force && selected == lastSel && idle == lastIdle) return;
-  lastSel = selected;
-  lastIdle = idle;
-
-  static const uint32_t colours[NUM_CHANNELS] = {
-    STATUS_COLOR_CH1, STATUS_COLOR_CH2, STATUS_COLOR_CH3
-  };
-  uint32_t c = colours[selected];
-  uint16_t scale = idle ? STATUS_BRIGHT_IDLE : STATUS_BRIGHT;
-  pixelRGB((uint8_t)(((uint16_t)((c >> 16) & 0xFF) * scale) / 255),
-           (uint8_t)(((uint16_t)((c >>  8) & 0xFF) * scale) / 255),
-           (uint8_t)(((uint16_t)( c        & 0xFF) * scale) / 255));
-}
-
-#elif GLIM_STATUS_BICOLOR
-// Bicolor LED: two GPIOs, no library. Colour says which channel is selected;
-// brightness is software PWM ("lit 1 ms in every N"), which is plenty steady for
-// an indicator and costs nothing but a compare in loop().
-static inline void ledWrite(uint8_t pin, bool on) {
-#if STATUS_LED_ANODE_COMMON
-  digitalWrite(pin, on ? LOW : HIGH);
+#elif GLIM_STATUS_LED
+static inline void ledWrite(bool on) {
+#if STATUS_LED_ACTIVE_LOW
+  digitalWrite(STATUS_LED_PIN, on ? LOW : HIGH);
 #else
-  digitalWrite(pin, on ? HIGH : LOW);
+  digitalWrite(STATUS_LED_PIN, on ? HIGH : LOW);
 #endif
 }
+static void statusInit() { pinMode(STATUS_LED_PIN, OUTPUT); ledWrite(false); }
 
-// Used by irLearn() for its feedback flashes: map an RGB request onto the two
-// emitters we actually have — anything with red becomes red, green becomes
-// green, and both lit reads as amber.
-static void pixelRGB(uint8_t r, uint8_t g, uint8_t b) {
-  (void)b;
-  ledWrite(STATUS_LED_R_PIN, r > 30);
-  ledWrite(STATUS_LED_G_PIN, g > 30);
-}
-
-static void updateStatusPixel(bool force) {
-  (void)force;                                  // cheap enough to redo every loop
-  bool idle = true;
-  for (uint8_t c = 0; c < NUM_CHANNELS; c++)
-    if (!muted[c] && level[c] > 0) { idle = false; break; }
-
-  uint32_t now = millis();
-
-  // Channels beyond the third reuse the same three colours, blinking.
-  bool blanked = (selected >= 3) && ((now / STATUS_LED_BLINK_MS) & 1);
-
-  // Software PWM: lit for the first millisecond of every N.
-  uint8_t div = idle ? STATUS_LED_DIV_IDLE : STATUS_LED_DIV_ON;
-  bool lit = !blanked && ((now % div) == 0);
-
-  uint8_t colour = selected % 3;                // 0 red, 1 green, 2 both
-  ledWrite(STATUS_LED_R_PIN, lit && (colour != 1));
-  ledWrite(STATUS_LED_G_PIN, lit && (colour != 0));
+// Software PWM: lit for the first millisecond of every STATUS_LED_DIV. Costs one
+// modulo per loop and consumes no timer.
+static void statusSet(bool on) {
+  ledWrite(on && ((millis() % STATUS_LED_DIV) == 0));
 }
 
 #else
-static void updateStatusPixel(bool) {}
-static void pixelRGB(uint8_t, uint8_t, uint8_t) {}
+static void statusInit() {}
+static void statusSet(bool) {}
 #endif
+
+// Called every loop. Lit whenever firmware is running — optionally pulsing, so a
+// live board is distinguishable from one the watchdog keeps resetting.
+static void statusRender() {
+#if GLIM_STATUS_HEARTBEAT
+  statusSet((millis() % STATUS_HEARTBEAT_MS) < (STATUS_HEARTBEAT_MS / 8));
+#else
+  statusSet(true);
+#endif
+}
+
+// Blocking feedback for the IR learn walk — the one place the indicator must say
+// more than "on". Uses blink *counts* rather than colours, so it reads identically
+// on a single LED and on the pixel.
+static void statusBlink(uint8_t n, uint16_t onMs, uint16_t offMs) {
+  for (uint8_t i = 0; i < n; i++) {
+    uint32_t t = millis();
+    while (millis() - t < onMs)  { statusSet(true);  wdt_reset(); }
+    t = millis();
+    while (millis() - t < offMs) { statusSet(false); wdt_reset(); }
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Actions — shared by the joystick and the remote
@@ -521,7 +514,7 @@ static void ackBlink(uint8_t ch) {
 // IR learn mode
 // ---------------------------------------------------------------------------
 //
-// Walks the six actions in order. For each: blink the status pixel (n+1) times,
+// Walks the six actions in order. For each: blink the status LED (n+1) times,
 // wait for a remote press, store it, confirm with a green flash. A press that
 // duplicates an already-bound code is rejected with a red flash and re-asked.
 // Ten seconds of silence ends the walk and saves what's bound so far.
@@ -536,10 +529,7 @@ static void irLearn() {
   irTake(&dummy);                                            // drop any stale frame
 
   for (n = 0; n < IR_ACT_COUNT; n++) {
-    for (uint8_t b = 0; b <= n; b++) {                       // n+1 blinks = step n
-      pixelRGB(60, 60, 60); delay(120);
-      pixelRGB(0, 0, 0);    delay(180);
-    }
+    statusBlink(n + 1, 120, 180);                            // n+1 blinks = step n
 
     uint32_t t0 = millis();
     for (;;) {
@@ -553,12 +543,12 @@ static void irLearn() {
       bool dup = false;
       for (uint8_t i = 0; i < n; i++) if (learned[i] == code) dup = true;
       if (dup) {                                             // same button twice
-        pixelRGB(80, 0, 0); delay(400); pixelRGB(0, 0, 0); delay(200);
+        statusBlink(4, 70, 70);                              // rejected
         t0 = millis();
         continue;
       }
       learned[n] = code;
-      pixelRGB(0, 80, 0); delay(250); pixelRGB(0, 0, 0); delay(150);
+      statusBlink(1, 400, 150);                              // accepted
       break;
     }
   }
@@ -569,10 +559,8 @@ done:
   irBound = (n > 0);
   saveState();
 
-  for (uint8_t i = 0; i < 3; i++) {                          // done
-    pixelRGB(0, 0, 90); delay(120); pixelRGB(0, 0, 0); delay(120);
-  }
-  updateStatusPixel(true);
+  statusBlink(3, 250, 250);                                  // saved
+  statusRender();
   for (uint8_t i = 0; i < NUM_CHANNELS; i++) renderChannel(i);
 }
 
@@ -734,12 +722,7 @@ static void calibrateCentre() {
 
 void setup() {
   pinMode(JOY_SW_PIN, INPUT_PULLUP);
-#if GLIM_STATUS_PIXEL
-  pinMode(STATUS_PIXEL_PIN, OUTPUT);   // required by the _Static variant
-#elif GLIM_STATUS_BICOLOR
-  pinMode(STATUS_LED_R_PIN, OUTPUT);
-  pinMode(STATUS_LED_G_PIN, OUTPUT);
-#endif
+  statusInit();
   pwmInit();
 
 #if GLIM_DEBUG
@@ -760,7 +743,7 @@ void setup() {
 #if GLIM_IR
   irInit();
 #endif
-  updateStatusPixel(true);
+  statusRender();
 
   // Soft-start: interpolate every display from 0 up to the restored scene over a
   // fixed BOOT_FADE_MS. Deliberately not the FADE_MS slew limiter — that's a
@@ -814,7 +797,7 @@ void loop() {
 
   slewAndRender(dt);
   updatePwmFreq();
-  updateStatusPixel(false);
+  statusRender();
 
   if (dirty && (now - dirtyAt) >= EEPROM_SAVE_DELAY_MS) saveState();
 
