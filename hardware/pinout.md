@@ -331,34 +331,60 @@ no new loop and gives the TVS a defined return.
 **Fit a 0 Ω / solder jumper between `RGND` and GND, populated by default.** If a
 future install ever does have a real earth, you can lift it.
 
-### RJ45 — use pins 4/5 and 7/8, leave the rest unconnected
+### Connector: RJ11 (6P4C), not RJ45
 
-| RJ45 pin | Signal |
+**Use a 6P4C modular jack.** The 2-pair cable has exactly four conductors, and an
+**RJ45 plug physically cannot enter a 6-position jack** — which is a mechanical
+interlock, not a warning label.
+
+That matters because the failure mode is asymmetric. Our 15 V reaching someone's
+network port is *unlikely* to do damage — Ethernet ports are transformer-isolated
+and block DC, which is exactly what makes PoE possible. The dangerous direction is
+inbound: a **passive PoE injector** (common in cheap wireless gear, and unlike
+802.3af/at it performs no detection handshake) would blindly push 24–48 V into
+A/B and into a regulator rated for 15 V. Standard PoE switches look for a 25 kΩ
+signature first and would not energise us, so this is a narrow case — but it is a
+real one, and a connector that cannot mate removes it entirely.
+
+The wider argument is simpler: **phone cable is effectively extinct.** Nobody has
+a spare RJ11 lead to plug in by accident, and nothing else in the building uses
+the socket. A dedicated bus deserves a connector that means only one thing.
+
+| 6P4C position | Signal |
 |---:|---|
-| 1, 2, 3, 6 | **no connect** |
-| **4** | **RS-485 A** |
-| **5** | **RS-485 B** |
-| **7** | **GND** |
-| **8** | **V_BUS** — 5 V *or* 12 V, see §3c |
-| 9, 10 (shell tabs) | GND |
+| **2** | **GND** |
+| **3** | **RS-485 A** |
+| **4** | **RS-485 B** |
+| **5** | **V_BUS** (15 V) |
 
-Name the net **`V_BUS`**, not `+5V`. Which voltage it carries is an install-time
-choice (§3c), and a net called `+5V` that sometimes holds 12 V is how boards get
-destroyed.
+Data goes on the **centre pair (3/4)**, which minimises the ~10 mm of untwist the
+crimp imposes; power takes the next pair out (2/5). Both are proper twisted pairs
+in the cable.
 
-The choice of pairs is deliberate. **Pins 4/5 (blue) and 7/8 (brown) are wired
-identically in T568A and T568B** — only 1/2 and 3/6 swap between the standards. So
-a mixed-standard or crossover lead cannot swap the data pair or reverse the power
-pair. Every RJ45 patch lead in the world just works.
+### ⚠ Refit the series Schottky
 
-Leaving 1/2/3/6 unconnected is what makes that guarantee complete: those are
-exactly the pins a crossover cable rearranges, so if nothing is on them, nothing
-can go wrong. It also means a **reversed** lead (pin 1↔8) would land +12 V on an
-unconnected pin — the panel simply fails to power up, rather than dying.
+Dropping RJ45 costs the reversal immunity that came from having unconnected pins.
+With 6P4C all four positions carry signal, and a modular reversal is symmetric
+about the centre — **every** pair swaps internally, so no pin assignment can dodge
+it. A reversed cord swaps GND and V_BUS.
 
-Tie the **shell tabs (9, 10) to GND**. With UTP there is no shield conductor in
-the cable, so this does nothing electrically — but it gives an ESD hit on the
-connector a path to ground instead of an arc to the signal pins.
+At 15 V that is cheap to insure against: a **series Schottky on `V_BUS`** costs
+~0.3 V, which is **2 %** of a 15 V rail rather than the 6 % it cost of a 5 V one.
+The reason it was dropped no longer applies. Use a 30–40 V part (BAT54, SS14).
+
+Two things it does *not* protect, worth knowing:
+
+- A reversed cord still lifts the panel's ground 15 V above the bus, which
+  stresses the transceiver's A/B pins. The module's TVS clamps it, and **the
+  module is socketed** — so the most exposed part of the system is also the
+  ₹31 one you can swap in 30 seconds. That was always the argument for using a
+  module rather than a bare transceiver.
+- It cannot make a reversed cable *work*. That is fine; "does not power up" is a
+  good failure.
+
+**Crimp your own leads, straight-through, and mark one end.** The reversal risk
+comes almost entirely from ready-made telephone cords, which are frequently wired
+pin 1 → pin 6 deliberately — and which you now have no reason to own.
 
 ### Two jacks, wired in parallel
 
@@ -366,10 +392,10 @@ Both jacks are the same jack — there is no "in" and no "out" (see
 `docs/architecture.md` §5). Wire them straight across:
 
 ```
-   J1.4 ──┬── J2.4 ── module A+
-   J1.5 ──┼── J2.5 ── module B−
-   J1.7 ──┼── J2.7 ── GND
-   J1.8 ──┴── J2.8 ── +12 V
+   J1.3 ──┬── J2.3 ── module A+
+   J1.4 ──┼── J2.4 ── module B−
+   J1.2 ──┼── J2.2 ── GND
+   J1.5 ──┴── J2.5 ── V_BUS (15 V)
 ```
 
 Silkscreen both **BUS**, not IN/OUT. The pass-through is passive copper, so a
@@ -463,9 +489,8 @@ RS-485 has no bus connection, so it needs its own supply — which is exactly th
 means no panel ever has to survive the HC-12's 100 mA transmit burst through this
 regulator: HC-12 panels are not the ones being fed from the cable.
 
-**⚠ Label the jacks.** An RJ45 socket carrying 15 V on pin 8 is a trap for
-whoever services this later — the connector invites plugging in Ethernet gear.
-Silkscreen both jacks clearly (e.g. `GLIM BUS — NOT ETHERNET`).
+No "NOT ETHERNET" label is needed: the 6P4C jack is its own interlock, since an
+RJ45 plug will not fit it. Silkscreen both jacks **BUS** and leave it at that.
 
 **Fit both.** Put a small linear-regulator footprint on the panel plus a
 **bypass jumper** across it. Jumper fitted = 5 V straight through; regulator

@@ -65,7 +65,7 @@ intact, plus the six hard-won findings worth carrying forward.
 | HC-12 (optional) | same footprint choice — 433 MHz drop-in where cable can't reach |
 | EC11 encoder | one per channel, with push switch |
 | USB-C PD trigger | 12–20 V for the LED rail; 12 V down the bus for panels |
-| 2-pair CAT5 + RJ11 (~₹7/m) | one cable carries the bus **and** panel power |
+| 2-pair CAT5 + RJ11 6P4C (~₹7/m) | one cable carries the bus **and** panel power; an RJ45 plug cannot fit |
 
 **Numbered pinouts for both boards: [hardware/pinout.md](hardware/pinout.md).** Wider board spec: [hardware/board.md](hardware/board.md). The LED
 channel itself — topology, sense resistor, inductor, layout, thermals — is in
