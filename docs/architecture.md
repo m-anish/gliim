@@ -200,11 +200,90 @@ invents start bits.
 
 | Cable | Verdict |
 |---|---|
-| **CAT5e/CAT6 UTP** | Default. Twisted, 8 conductors, RJ45 ecosystem everywhere. The price gap to phone cable is small — check locally before optimising it away. |
-| **Round twisted telephone (2–3 pair)** | **Fine.** If it is twisted, the objection disappears. |
+| **CAT5e/CAT6 UTP** | Twisted, 8 conductors, RJ45 ecosystem everywhere. Buy this if you want spare pairs. |
+| **2-pair CAT5 telecom** | **The pick.** Twisted, 4 conductors — exactly what the design uses — at roughly half the price of 4-pair. See below. |
+| **Round twisted telephone (2–3 pair)** | Fine. If it is twisted, the objection disappears. |
 | **Flat 6-core "silver satin"** | Workable with all three changes above. Use the conductor order shown. |
 | **Flat 4-core** | Workable, no spare conductors, no room for a second ground. |
 | **4/6-core alarm or CCTV cable** | Common and cheap; often shielded, which substitutes well for twist. Tie the shield to GND **at one end only**. |
+
+#### 2-pair CAT5 on RJ11 — the recommended build
+
+e.g. RODEL i10 "CAT5 2 pair copper", 90 m for ~₹660 (~₹7.3/m). Twisted, four
+conductors, and cheap enough that flat cable saves nothing. Map it:
+
+| Pair | RJ11 (6P4C) positions | Use |
+|---|---|---|
+| 1 | **3, 4** — the centre pair | RS-485 **A / B** |
+| 2 | **2, 5** | **GND** / **+5 V** |
+
+Modular jacks assign pairs centre-outward, so putting data on positions 3/4 keeps
+the two data conductors adjacent and minimises the ~10 mm of untwist the crimp
+imposes. That untwisted stub is irrelevant at these edge rates, but it costs
+nothing to get right.
+
+Twisting the power conductors as a pair is a bonus, not a compromise — it shrinks
+the power loop area, so the supply radiates less into the data pair than two
+parallel conductors would.
+
+**⚠ The one real hazard: reversed RJ11 cords.** Telephone handset and line cords
+are frequently wired **pin 1 → pin 6** on purpose, so the cord works either way
+up. Plug one of those into this bus and positions 2/5 swap — which swaps **GND
+and +5 V** and destroys the panel. A/B swapping is harmless by comparison (the
+receiver just sees inverted data and reports framing errors). Two defences, take
+both:
+
+- **Crimp your own, straight-through**, and mark one end. Do not use salvaged
+  phone cords.
+- **Fit a series Schottky** on the panel's +5 V input regardless. It is one part
+  and ~0.3 V, and it turns a destroyed board into a board that simply does not
+  power up.
+
+**Other buying checks:**
+
+- **Insist on solid copper, not CCA.** Copper-clad aluminium is common at this
+  price point and often mislabelled — it has higher resistance and cracks when
+  flexed. This listing says copper; confirm on arrival by weight and by scraping
+  a strand end.
+- **Match the crimp to the conductor.** CAT5 is solid-core; RJ11 plugs come in
+  solid and stranded versions with differently shaped IDC teeth. The wrong one
+  gives intermittent contact that will look like a protocol bug for a whole
+  evening.
+- Whether this cable really meets CAT5's 100 Ω impedance spec **does not matter
+  here** — see the reflection arithmetic above. Buy it for the twist and the
+  copper.
+
+**Daisy-chain with two jacks per node**, wired in parallel inside the enclosure —
+in and out. Do **not** use RJ11 splitters: they create stubs, which is the one
+topology RS-485 genuinely dislikes. The final node's spare jack is a natural home
+for a termination plug (a 6P4C plug with 120 Ω across positions 3–4) if you
+decide you want one.
+
+*If RJ45 hardware is cheaper or more available where you are, use it instead* —
+populate 4 of the 8 positions, keep A/B on a single twisted pair, and you get the
+standardised, never-reversed T568B patch-lead ecosystem for free.
+
+**Panel power on 4 conductors.** Send **5 V**, regulate to **3.3 V** locally with
+a low-dropout part (HT7333 class, ~0.1 V dropout), and run the panel MCU at
+**≤10 MHz** with a **3.3 V transceiver** (MAX3483 or SP3483 — both slew-limited).
+The reason is headroom: a 20 MHz ATtiny needs ≥4.5 V and a MAX485 needs ≥4.75 V,
+so a few hundred millivolts of cable drop plus the Schottky puts you out of spec.
+At 10 MHz the ATtiny is happy down to 2.7 V and the whole question evaporates. A
+panel has nothing to compute — it reads encoders and a UART.
+
+Mixing a 5 V transceiver on the driver node with 3.3 V transceivers on the panels
+is **fine and standard**: RS-485 is a differential line spec, and the receive
+thresholds are compatible in both directions.
+
+Sanity check on drop: 24 AWG is ~0.084 Ω/m, so a 40 m trunk is ~3.4 Ω per
+conductor. Four panels at ~15 mA each is 60 mA, giving ~0.4 V round-trip — well
+inside the 3.3 V regulator's headroom.
+
+**With the twist restored**, 115200 baud and conventional termination are back on
+the table. The slew-limited transceiver is still worth choosing (lower EMI, free),
+but it stops being load-bearing.
+
+---
 
 Whichever you pick, **do not run it parallel to mains** for long stretches —
 cross at right angles where you can. This matters much more without twist.
@@ -388,7 +467,7 @@ everywhere** is worth considering purely for BOM and toolchain simplicity.
 | **Isolation** | Only needed if panels sit on different mains circuits. Costs ~₹200/node. |
 | **Zone count** | 16 is almost certainly plenty for one hall. |
 | **Does the driver keep IR?** | It is 1 pin and already written. Probably yes, as a per-node override. |
-| **Panel power** | 12 V + a local buck on CAT5; **5 V direct, no buck** on cheap cable. The 5 V route is simpler and quieter — consider it the default unless a panel grows a real load. |
+| **Panel power** | **5 V down the pair → 3.3 V LDO on the panel, MCU at ≤10 MHz.** No buck converter anywhere. Revisit only if a panel grows a real load. |
 
 ---
 
