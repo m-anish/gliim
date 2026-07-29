@@ -203,8 +203,7 @@ all three need pull-ups.
 | **A** | MCU encoder `A` pin |
 | **B** | MCU encoder `B` pin |
 | **C** | **GND** — the common for A and B |
-| **D** | **GND** — switch, non-polarised |
-| **E** | MCU encoder `SW` pin |
+| **D** / **E** | switch — **non-polarised**, so either one to GND and the other to the MCU `SW` pin |
 | **O** | **GND** — metal shell / mounting tabs |
 
 Per encoder, ×3 on each board:
@@ -221,8 +220,35 @@ Per encoder, ×3 on each board:
               GND      GND      GND
             (to MCU) (to MCU) (to MCU)
 
-   C ── GND        D ── GND        O(shell) ── GND
+   C ── GND      D or E ── GND     O(shell) ── GND
 ```
+
+`C` (quadrature common) and whichever of `D`/`E` you ground are both returns, so
+they share the ground net — that is correct, not a shortcut.
+
+### Net names → package pins
+
+Nine nets per board. The `A`/`B` pairs are deliberately identical on both boards
+so the decoder is the same code; only the switches differ.
+
+| Net | Main board (3226) | Panel (3216) |
+|---|---|---|
+| `ENC1_A` | pin 17 (PA1) | pin 17 (PA1) |
+| `ENC1_B` | pin 18 (PA2) | pin 18 (PA2) |
+| `ENC1_SW` | pin 5 (PA7) | pin 5 (PA7) |
+| `ENC2_A` | pin 19 (PA3) | pin 19 (PA3) |
+| `ENC2_B` | pin 2 (PA4) | pin 2 (PA4) |
+| `ENC2_SW` | pin 7 (PB4) | pin 6 (PB5) |
+| `ENC3_A` | pin 3 (PA5) | pin 3 (PA5) |
+| `ENC3_B` | pin 4 (PA6) | pin 4 (PA6) |
+| `ENC3_SW` | pin 12 (PC0) | pin 7 (PB4) |
+
+### Layout note: use resistor arrays
+
+Three encoders means **nine 10 kΩ pull-ups and nine caps** per board. All nine
+pull-ups are the same value to the same rail, so two 4-element **resistor arrays**
+plus one discrete (or one 8-element array plus one) replaces nine parts with
+three — worth it on a panel PCB that has to fit behind a wall plate.
 
 **Pull-ups: fit external 10 kΩ, do not rely on the internal ones.** The ATtiny's
 internal pull-ups are 20–50 kΩ and only loosely specified, which leaves the RC
