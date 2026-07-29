@@ -118,8 +118,9 @@ the run is short and slow enough that cheap untwisted cable also works — see
   **MAX483/MAX487** (5 V, our rail) over the MAX485 — same price and pinout, and
   it is what makes cheap cable viable (see below). SP3485 boards are on the shelf
   at Hubtronics if you go 3.3 V.
-- Idle bias resistors are mandatory; 120 Ω termination at **both ends only** is
-  good practice but optional at this length with slew-limited parts.
+- **Neither termination nor bias resistors are needed** at this speed and length,
+  given slew-limited, true-failsafe transceivers — which is what keeps every
+  board identical. See *Plug-and-play* below.
 - Daisy-chain, not star. Stubs short.
 
 ### What was rejected, and why
@@ -171,15 +172,90 @@ for it whatsoever. **The protocol has no concept of position, order, or
 neighbours** — a frame is broadcast and every node hears it. That is what makes
 this scale: adding a panel is a wiring operation, not a configuration one.
 
-**Termination and bias in a chain:**
+#### Plug-and-play: making every board identical
 
-- **Termination** (120 Ω) goes at the **two physical ends only** — typically the
-  driver node at one end and the last panel at the other. It is *not* per node.
-  A 6P4C plug with a resistor across positions 3–4 makes a tidy terminator for
-  the last node's unused jack.
-- **Bias** (the idle pull-up/pull-down pair) goes in exactly **one** place on the
-  whole bus — put it on the driver node. Repeating it per node progressively
-  loads the line.
+Termination, bias and addressing are the three things that are normally
+*position-dependent*, and they are exactly what makes an installation fiddly.
+At this speed and length, all three can be designed away. **Every panel should
+be interchangeable, orientation-free, and configuration-free.**
+
+**1. Omit termination entirely.**
+
+Termination exists to absorb reflections. Reflections only matter if they are
+still ringing when the receiver samples — and here they are not, by three orders
+of magnitude. A slew-limited transceiver has edges of roughly half a microsecond
+against a 150 ns round trip at 15 m, so the line is electrically *short*; even
+if it rings, it settles inside ~500 ns, while the bit is 8.7 µs long and is
+sampled at 4.3 µs.
+
+So: **no terminators, no jumpers, no "which end am I" decision.** This is where
+the slew-limited transceiver earns its keep — a full-speed MAX485 with ~10 ns
+edges over the same cable genuinely would ring, and would genuinely need
+terminating. Do not substitute one back in.
+
+This holds for **≤115200 baud and runs up to ~100 m**. If you ever exceed that,
+the fix is still not a board change: put a 120 Ω resistor in a 6P4C plug and
+push it into the spare jack at each end of the chain. Termination as a *plug*
+keeps the boards identical.
+
+**2. Use a true-failsafe transceiver, and drop the bias resistors too.**
+
+Idle bias exists because a floating differential pair leaves the receiver output
+undefined — which on a tiny MCU means the UART sees phantom start bits and
+interrupts continuously. That is a real problem, and the textbook fix (one bias
+network somewhere on the bus) is position-dependent.
+
+**True fail-safe** receivers solve it in silicon: the input threshold is offset
+(roughly −200 mV to −50 mV rather than ±200 mV) so an idle or open line reads as
+a defined logic HIGH with no external resistors at all. Look for "fail-safe
+receiver" or "open-circuit fail-safe" in the datasheet — candidates worth
+pricing are **MAX3082** (5 V, slew-limited) and **SN65HVD3082E** or **THVD1410**
+(3.3 V). Verify the spec on the part you actually source; the plain
+MAX483/485/487 and SP3485 do **not** have it.
+
+If only non-failsafe parts are available, fall back to **one** bias network on
+the driver node — the driver is a different board type anyway, so panels stay
+identical. Never repeat bias per node; it progressively loads the line.
+
+**3. Both jacks are the same jack.**
+
+Because they are soldered together, there is no "in" and no "out". Label them
+both **BUS**. Any node works anywhere in the chain, including at either end, and
+either cable can go in either socket.
+
+**4. Make cable orientation harmless.**
+
+A reversed RJ11 cord swaps both pairs (§ *2-pair CAT5 on RJ11*). Two cheap parts
+make that a non-event instead of a dead panel:
+
+- **A Schottky bridge rectifier on the power pair.** Either polarity now works.
+  Four Schottkys cost ~0.6 V, so distribute **6–7 V** rather than 5 V to leave
+  the 3.3 V LDO its headroom.
+- **A/B swap corrected in firmware.** Swapping A and B simply inverts the
+  received signal, and the ATtiny can undo that in hardware by setting
+  `PORT_INVEN_bm` in the `PINnCTRL` of the USART's RX and TX pins. Detection is
+  trivial with a fail-safe receiver: a correct idle line sits HIGH, a swapped one
+  sits LOW. If RX has been continuously low for >20 ms — far longer than any
+  valid byte — flip `INVEN` and carry on.
+
+Together these mean the cable **cannot be plugged in wrong**, in either socket,
+either way round.
+
+**5. No addresses to assign.**
+
+Every ATtiny has a unique serial number in `SIGROW`. Hash it to 16 bits and use
+that as the node ID. With 6 nodes in a 65536-space the collision probability is
+~0.02 %, so there is no claim protocol, no DIP switch, no commissioning step, and
+the ID survives reboots and EEPROM erasure. See §6.5.
+
+**6. Sensible zero-config zone defaults.**
+
+The one genuinely install-specific thing left is *which knob runs which light*.
+Default it positionally — **panel encoder N ↔ driver channel N** (i.e. zone = index)
+— and a fresh set of boards works the moment they are plugged together, with
+knob 1 running channel 1 everywhere. Only if you want the east and west walls
+independent do you need the learn gesture in §6.5, and that is a choice rather
+than a prerequisite.
 
 **Stubs and stars.** Textbook RS-485 forbids branching. Slew-limited drivers make
 this far more forgiving than the literature implies: with ~1 µs edges, a stub has
@@ -500,11 +576,17 @@ adding a listener (a logger, a display) free.
 
 ### 6.5 Addressing
 
-Store the node address in **EEPROM**, not DIP switches — the pins are worth more
-than the convenience, and a commissioning gesture (hold the encoder at power-on,
-count the blinks) costs nothing. Ship a factory default that is guaranteed
-unique-ish (e.g. derived from the chip's serial number) so an unconfigured bus
-still works.
+**Do not assign addresses at all.** Every ATtiny carries a unique serial number in
+`SIGROW`; hash it to 16 bits and use that as the node ID. Six nodes in a
+65536-space collide with probability ~0.02 %, so there is no DIP switch, no claim
+protocol, no commissioning step, and the ID is stable across reboots and EEPROM
+erasure. A node is identified by what it *is*, not by where it was installed.
+
+The only genuinely install-specific setting is **zone binding** — which knob runs
+which light. Default it positionally (encoder N ↔ channel N) so a fresh set of
+boards works on first plug-in, and keep EEPROM for the override: a learn gesture
+(hold a driver channel's button, then turn the knob you want bound to it) covers
+the case where the east and west walls should be independent.
 
 ---
 
@@ -610,9 +692,10 @@ everywhere** is worth considering purely for BOM and toolchain simplicity.
 
 | Part | Where | ~Cost | Note |
 |---|---|---|---|
-| **MAX483 / MAX487** (5 V) | every node | ~₹17 | half-duplex RS-485, **slew-limited** — prefer over MAX485, see cabling |
-| 120 Ω 1 % | 2 (bus ends only) | — | termination; optional at this length with slew-limited parts |
-| 680 Ω ×2 | 1 place on the bus | — | idle bias, A high / B low. **Not optional.** |
+| **MAX3082** (5 V) / **SN65HVD3082E**, **THVD1410** (3.3 V) | every node | ~₹17–40 | half-duplex RS-485, **slew-limited + true fail-safe**. Slew limiting removes termination; fail-safe removes bias. MAX483/487/SP3485 work but need one bias network. |
+| 120 Ω 1 % | **none** | — | termination is unnecessary at ≤115200 / ~100 m with slew-limited parts; if ever needed, fit it in a 6P4C *plug*, not on a board |
+| Bias resistors | **none** | — | eliminated by choosing a true-failsafe receiver; otherwise one network on the driver node only |
+| Schottky bridge | per panel | ~₹5 | makes cable polarity harmless; distribute 6–7 V to cover its ~0.6 V |
 | **EC11 encoder** + knob | per channel | ₹25 | 20 detents, with push |
 | 1 kΩ + 10 nF | per encoder line | — | RC debounce |
 | RJ45 jacks or 4-pin screw terminals | per node | — | CAT5 in / CAT5 out for daisy-chain |
@@ -629,6 +712,7 @@ everywhere** is worth considering purely for BOM and toolchain simplicity.
 | **Bus speed** | 115200 is safe on twisted pair. Drop to 19200–38400 on untwisted cable — nothing here is throughput-bound. |
 | **Free-running vs polled** | Free-running, per the collision numbers in §6.3. Polled stays an easy retrofit (~9.5 ms cycle at 6 nodes) if you want determinism during bring-up. |
 | **Isolation** | Only needed if panels sit on different mains circuits. Costs ~₹200/node. |
+| **Fail-safe transceiver sourcing** | The plug-and-play story leans on it. If MAX3082/SN65HVD3082E/THVD1410 are hard to get locally, fall back to MAX483/487 plus one bias network on the driver node — panels stay identical either way. |
 | **Zone count** | 16 is almost certainly plenty for one hall. |
 | **Does the driver keep IR?** | It is 1 pin and already written. Probably yes, as a per-node override. |
 | **Panel power** | **5 V down the pair → 3.3 V LDO on the panel, MCU at ≤10 MHz.** No buck converter anywhere. Revisit only if a panel grows a real load. |
