@@ -114,10 +114,9 @@ the run is short and slow enough that cheap untwisted cable also works — see
   baud × distance product is ~1.7 × 10⁶ against a ~10⁸ rule of thumb, so there is
   a ~50× margin. Even 250 kbaud (DMX's rate) is comfortable.
 - **32 nodes** on a standard transceiver; more with fractional-unit-load parts.
-- **Socket a generic RS-485 module** on a 6-pin header rather than placing a
-  transceiver — cheap, swappable, and it is the part that eats cable surges. A
-  slew-limited fail-safe IC (MAX3082 / SN65HVD3082E) is better engineering but an
-  optimisation, not a prerequisite. See *Use a generic RS-485 module* below.
+- **Use an HW-0519-class auto-flow module** (~₹31) rather than placing a bare
+  transceiver: TVS protection included, termination jumper-disabled by default,
+  auto-direction so there is no DE pin. See *Use a generic RS-485 module* below.
 - **Termination is not needed** at this speed and length — with *any* transceiver,
   reflections settle three orders of magnitude before the sampling instant. Remove
   the 120 Ω many modules ship with. Bias is needed only if the part lacks a
@@ -295,26 +294,62 @@ on top.** At 2–6 nodes this is the right call:
   30-second swap.
 - Available everywhere, and ideal for step 1 of §11.
 
-Header pinout: `VCC · GND · DI · RO · DE · RE`. Keep **DE and RE on separate
-pins** rather than jumpering them — most modules break them out separately
-anyway, and §6.3 uses the split for transmit read-back collision detection.
+**Recommended part: the HW-0519-class "RS485 to TTL, automatic flow control"
+module** — MAX485 based, ~₹31, 0.8 mm PCB with castellated pads so it can sit
+flat on the carrier board rather than on a header. Four properties make it a
+better fit than the plain blue breakout:
 
-**⚠ The one thing that will actually bite you: on-board termination.**
+| Feature | Why it matters here |
+|---|---|
+| **Automatic direction control** | No DE/RE pin at all. Frees a GPIO *and* deletes the single most common RS-485 firmware bug — holding DE a bit too long or releasing it a bit too early. |
+| **Termination fitted but disabled** (short the `R0` jumper to enable) | Exactly the default we want. Leave `R0` open on every node and there is nothing to desolder. |
+| **On-board TVS + earth pad** | The cable leaves the enclosure and runs across a hall; the transceiver is what eats surges. A bare MAX485 gives you none of this. The earth pad may be left unconnected for indoor runs. |
+| **RXD / TXD indicator LEDs** | Bring-up diagnostics for free — you can see traffic without a scope. |
 
-Many of these modules ship with a **120 Ω resistor already fitted across A–B**,
-and some add bias resistors. Two terminated nodes is the textbook bus. **Six
-terminated nodes is 20 Ω**, which is well under the ~54 Ω an RS-485 driver is
-specified to drive — the differential voltage collapses toward the 200 mV
-receiver threshold and the bus becomes flaky in a way that looks like a firmware
-bug.
+Pinout is `VCC · GND · TXD · RXD` on the logic side, `A+ · B− · earth` on the
+bus side. Two pins per node instead of five.
 
-Before installing more than two: **measure A–B with a multimeter.** ~120 Ω means
-a terminator is fitted; desolder it (or lift the solder jumper) on every node.
-Per *Plug-and-play* above you want **none** of them anyway.
+**⚠ Pull TXD up with 10 kΩ on your PCB.** The auto-direction circuit works by
+sniffing the TXD line, and the ATtiny's UART pin is **high-Z from power-on until
+firmware configures it**. A floating TXD can make the module assert its driver
+and **jam the entire bus** while one node boots. The pull-up holds TXD in its
+idle-high state through that window. This is the same class of hazard as the
+PT4115 DIM pulldowns.
 
-Pre-fitted **bias** resistors are the opposite — harmless and mildly useful. Six
-nodes' worth of 10 kΩ pairs in parallel is ~1.7 kΩ, a few milliamps, and it
-covers the idle-line problem if your module has a plain non-failsafe MAX485.
+**Verify on arrival — four quick checks:**
+
+1. **Measure A–B with a multimeter.** Should read open, not ~120 Ω. If it reads
+   120 Ω, `R0` is shorted from the factory: six terminated nodes is 20 Ω, well
+   under the ~54 Ω an RS-485 driver is specified for, and the differential
+   voltage collapses toward the 200 mV receiver threshold. The resulting flakiness
+   looks exactly like a firmware bug.
+2. **Idle RXD should sit steady HIGH** with the bus connected but silent. If it
+   chatters, the module has no fail-safe bias — add one network on the driver
+   node.
+3. **Does it echo?** Transmit a byte and see whether it arrives back on RXD. Many
+   auto-direction designs tie RE permanently active, so you hear yourself. That
+   is *useful* — it is exactly the transmit read-back that §6.3 wants for
+   collision detection. **Either way the firmware must discard any frame whose
+   source ID is its own.**
+4. **Confirm the supply rail.** A genuine MAX485 is a 5 V part (4.75–5.25 V). The
+   "3.3 V compatible" claim most likely refers to the *TTL side* accepting 3.3 V
+   logic. Assume **VCC = 5 V** unless the chip turns out to be a MAX3485.
+
+**Knock-on: distribute 12 V, not 5 V.** If the module wants a solid 5 V, then 5 V
+distribution minus the series Schottky and cable drop lands near 4.3 V — out of
+spec. Send **12 V** and drop it with a **linear regulator** on the panel. At
+~30 mA that is (12−5) × 0.03 ≈ **0.2 W**, comfortable in a SOT-89, and a linear
+part keeps a switcher off the conductors beside the data pair. This is simpler
+than the earlier 3.3 V plan: one rail, everything in spec, no level shifting.
+
+**Cost of auto-direction:** turnaround timing is no longer yours to control. That
+is fine for free-running broadcast (§6.3), which has no tight timing anywhere. If
+you ever switch to a polled master, re-check that the module releases the bus
+fast enough between poll and reply.
+
+The listing's "Note: Only one in the whole network…" line is machine-translated
+and does not parse; there is no evidence of a real constraint behind it. The
+120 Ω jumper is the only genuine one-per-network item, and we disable it anyway.
 
 **What a generic module costs you.** You no longer choose the transceiver, and
 almost every module carries a plain **MAX485**: fast edges, no true fail-safe.
@@ -751,15 +786,15 @@ everywhere** is worth considering purely for BOM and toolchain simplicity.
 
 | Part | Where | ~Cost | Note |
 |---|---|---|---|
-| **RS-485 module** (MAX485 breakout) | every node | ~₹40–60 | simplest path; socket it on a 6-pin header. **Check for a fitted 120 Ω and remove it.** |
-| *or* **MAX3082** / **SN65HVD3082E** / **THVD1410** | every node | ~₹17–40 | bare IC, **slew-limited + true fail-safe** — lower EMI and no bias resistors. An optimisation, not a prerequisite. |
+| **RS-485 auto-flow module** (HW-0519 class) | every node | **~₹31** | MAX485 + TVS + jumper-selectable 120 Ω + auto-direction. Leave `R0` open. **Needs a 10 kΩ pull-up on TXD.** |
+| *or* **MAX3082** / **SN65HVD3082E** / **THVD1410** | every node | ~₹17–40 | bare IC, **slew-limited + true fail-safe** — lower EMI, no bias resistors, but no TVS and you own the DE timing. An optimisation, not a prerequisite. |
 | 120 Ω 1 % | **none** | — | termination is unnecessary at ≤115200 / ~100 m with slew-limited parts; if ever needed, fit it in a 6P4C *plug*, not on a board |
 | Bias resistors | **none** | — | eliminated by choosing a true-failsafe receiver; otherwise one network on the driver node only |
 | Schottky diode (series) | per panel | ~₹2 | reverse-polarity protection: a miswired cable means "does not power up", not a dead board |
 | **EC11 encoder** + knob | per channel | ₹25 | 20 detents, with push |
 | 1 kΩ + 10 nF | per encoder line | — | RC debounce |
 | RJ45 jacks or 4-pin screw terminals | per node | — | CAT5 in / CAT5 out for daisy-chain |
-| 12 V → 3.3/5 V buck | per panel | ₹60 | local regulation |
+| 12 V → 5 V linear regulator | per panel | ~₹10 | ~0.2 W at 30 mA; no switcher beside the data pair |
 | TVS + series resistors on A/B | per node | — | the bus leaves the enclosure |
 
 ---
@@ -772,10 +807,10 @@ everywhere** is worth considering purely for BOM and toolchain simplicity.
 | **Bus speed** | 115200 is safe on twisted pair. Drop to 19200–38400 on untwisted cable — nothing here is throughput-bound. |
 | **Free-running vs polled** | Free-running, per the collision numbers in §6.3. Polled stays an easy retrofit (~9.5 ms cycle at 6 nodes) if you want determinism during bring-up. |
 | **Isolation** | Only needed if panels sit on different mains circuits. Costs ~₹200/node. |
-| **Module or bare IC?** | Start with a generic MAX485 module on a 6-pin header — cheap, swappable, and the transceiver is the part that dies. Move to a bare slew-limited fail-safe IC only if EMI or a higher baud rate ever justifies it. |
+| **Module or bare IC?** | Settled: HW-0519-class auto-flow module, ~₹31. TVS included, termination jumper-disabled, one fewer GPIO. Move to a bare slew-limited fail-safe IC only if EMI or a higher baud rate ever justifies it. |
 | **Zone count** | 16 is almost certainly plenty for one hall. |
 | **Does the driver keep IR?** | It is 1 pin and already written. Probably yes, as a per-node override. |
-| **Panel power** | **5 V down the pair → 3.3 V LDO on the panel, MCU at ≤10 MHz.** No buck converter anywhere. Revisit only if a panel grows a real load. |
+| **Panel power** | **12 V down the pair → 5 V linear regulator on the panel.** Keeps the MAX485 module in spec and puts no switcher near the data pair. ~0.2 W in the regulator. |
 
 ---
 
