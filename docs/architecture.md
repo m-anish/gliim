@@ -104,7 +104,9 @@ range so dim settings trim finely, faster when spun. `RAMP_LOW_FACTOR` and the
 
 40–50 ft (12–15 m), multiple panels, next to three switching regulators.
 
-**Recommendation: half-duplex RS-485 over twisted pair.**
+**Recommendation: half-duplex RS-485.** Twisted pair is the safe default, but
+the run is short and slow enough that cheap untwisted cable also works — see
+*Cheaper cable* below.
 
 - **Differential**, so it rejects exactly the common-mode noise a switching LED
   driver injects. This is the deciding factor, not the distance.
@@ -112,9 +114,12 @@ range so dim settings trim finely, faster when spun. `RAMP_LOW_FACTOR` and the
   baud × distance product is ~1.7 × 10⁶ against a ~10⁸ rule of thumb, so there is
   a ~50× margin. Even 250 kbaud (DMX's rate) is comfortable.
 - **32 nodes** on a standard transceiver; more with fractional-unit-load parts.
-- Transceivers are ₹17 and stocked locally: **MAX485** (5 V, our rail) or
-  **SP3485** (3.3 V). SP3485 boards are on the shelf at Hubtronics.
-- Needs 120 Ω termination at **both ends only**, plus idle bias resistors.
+- Transceivers are ~₹17 and stocked locally. Prefer the **slew-limited**
+  **MAX483/MAX487** (5 V, our rail) over the MAX485 — same price and pinout, and
+  it is what makes cheap cable viable (see below). SP3485 boards are on the shelf
+  at Hubtronics if you go 3.3 V.
+- Idle bias resistors are mandatory; 120 Ω termination at **both ends only** is
+  good practice but optional at this length with slew-limited parts.
 - Daisy-chain, not star. Stubs short.
 
 ### What was rejected, and why
