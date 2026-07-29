@@ -2,7 +2,7 @@
 
 > This covers the **rev1 hand-soldered board**. For the next board — ATtiny3216,
 > 16-bit PWM, USB-C PD power, on-board IR — see
-> [`rev2/README.md`](rev2/README.md).
+> [`../hardware/board.md`](../hardware/board.md).
 
 
 A living parts list for glim. It covers the **core dimmer** (current rev1,
@@ -27,7 +27,7 @@ These change the BOM; defaults in brackets are what the rest of this doc assumes
 | # | Part | Qty | Role | ~Unit |
 |---|------|-----|------|-------|
 | 1 | **ATtiny814** (SOIC-14) | 1 | MCU — 3× PWM, 2× ADC, 1 button | $0.8 |
-| 2 | **PT4115 LED driver** — discrete build preferred, see [led-driver.md](led-driver.md); modules also work | 3 | one constant-current channel each | ₹50 discrete / ₹130 module |
+| 2 | **PT4115 LED driver** — discrete build preferred, see [led-driver.md](../hardware/led-driver.md); modules also work | 3 | one constant-current channel each | ₹50 discrete / ₹130 module |
 | 3 | **DC-DC buck module → 5 V** | 1 | logic + joystick rail | $1.0 |
 | 4 | **Analog joystick module** (KY-023, 5-pin GND/5V/X/Y/SW) | 1 | the entire UI | $1.0 |
 | 5 | LED load (your lighting) | ≤5 / ch | the actual light | varies |
@@ -81,7 +81,7 @@ LED (Add-on C) can stay a dumb "system on" lamp.
   all NEC needs. ✅ implemented.
 - **Learn mode** ✅ implemented — binds *any* NEC remote, including one your
   friend already owns, so a discontinued SKU never bricks the UI. Hold the stick
-  3 s; see [../docs/controls.md](../docs/controls.md).
+  3 s; see [./rev1-controls.md](./rev1-controls.md).
 - **Noise:** three switching drivers sit nearby. Use the 100 Ω + 4.7 µF supply
   filter, the 100 nF at the receiver pins, and mount the TSOP away from the
   drivers/inductors. Prefer TSOP38238 over VS1838B for AGC/noise immunity.
@@ -116,7 +116,7 @@ drives it as a plain single-colour lamp; rev2 uses one discrete LED.
 
 The LEDs sit on PB0–PB2 because those are the only TCA0 outputs that exist in
 16-bit normal mode — worth ~6× the dimming depth of the 8-bit split mode they
-started on. See [../docs/hardware.md](../docs/hardware.md) for the full rationale
+started on. See [./rev1-hardware.md](./rev1-hardware.md) for the full rationale
 and [../ROADMAP.md](../ROADMAP.md) for what comes next.
 
 ## Rough cost (electronics, excl. PSU & LED load)

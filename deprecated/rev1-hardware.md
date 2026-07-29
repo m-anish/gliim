@@ -9,7 +9,7 @@ that map), the power tree, and how to program the chip.
 ATtiny814, 14-pin SOIC — this is the **rev1** board, and all twelve I/O are now
 spoken for. rev2 (ATtiny3216) keeps the joystick on PA1/PA2 but relocates the LED
 channels to PB3/PB4/PB5 so PB0–PB2 can carry I²C and a hardware UART; see
-[`../hardware/rev2/README.md`](../hardware/rev2/README.md).
+[`../hardware/board.md`](../hardware/board.md).
 
 | Signal | Pin | On-chip function |
 |--------|-----|------------------|

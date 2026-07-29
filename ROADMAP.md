@@ -1,5 +1,13 @@
 # Roadmap
 
+> **⚠ Partly superseded.** glim pivoted to **one EC11 encoder per channel** and
+> **control panels on an RS-485 bus** — see
+> [`docs/architecture.md`](docs/architecture.md), which is the current plan of
+> record. Tiers below that assume a single box with a joystick (channel
+> indicators, the ack-blink, the 6-channel split-mode path, the "second control
+> point" work) are obsolete; the bus replaces them. The resource budget, the
+> Tier-0 firmware items and the glim/lokki boundary still hold.
+
 Where glim can go without losing the plot. The organizing principle is **stay
 tiny and tactile**: glim is a thing you operate by feel, in the dark, with no
 app and no network. Enhancements are welcome as long as they respect that.
@@ -79,11 +87,11 @@ Small parts, one or two pins each. Pick à la carte.
 > outputs), and it covers the two real gaps: per-channel level at a glance, and
 > across-the-room control.
 
-## Tier 2 — rev2 PCB ✅ specified
+## Tier 2 — rev2 PCB ✅ specified (pre-pivot; see architecture.md)
 
-**Full specification: [`hardware/rev2/`](hardware/rev2/README.md)** — board spec,
+**Full specification: [`hardware/`](hardware/board.md)** — board spec,
 [LED driver circuit](hardware/led-driver.md), and
-[input circuits](hardware/rev2/input.md).
+[input circuits](hardware/input.md).
 
 Headline: ATtiny3216, **16-bit PWM** (the PT4115's real floor is a 2 µs on-time,
 so 8-bit was wasting ~6× of dimming depth), USB-C PD power, on-board IR, a Qwiic
@@ -106,7 +114,7 @@ robustness a wall-installed device wants.
 - **Enclosure + a joystick with a decent detent** — the feel of the stick is the
   whole product; a mushy module undoes good firmware.
 
-## Tier 3 — past the 814 (know when to stop)
+## Tier 3 — past a single node (know when to stop)
 
 Where the minimalist envelope genuinely runs out. Reach for these only when the
 requirement can't be met on a tiny part:

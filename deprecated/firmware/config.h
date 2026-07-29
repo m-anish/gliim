@@ -1,29 +1,78 @@
 // config.h — glim hardware map and behaviour tunables.
 //
-// Everything you'd want to adjust for a given build lives here. The pin choices
-// are not arbitrary — they are forced by which pins can emit a TCA0 waveform and
-// which can reach the ADC. See deprecated/rev1-hardware.md for the datasheet
-// reasoning before moving any of them.
-//
-// ⚠ PRE-PIVOT. This is the ATtiny3216 pin map as it stood before the move to
-//   rotary encoders and an RS-485 panel bus. It still builds and runs, but the
-//   architecture it serves is superseded: docs/architecture.md §8 reassigns
-//   USART0 to the bus, moves LED ch3 to PB5 and I²C to PA1/PA2, and deletes the
-//   joystick entirely. Treat everything below the PWM section as the surviving
-//   part; the pin map is due a rewrite.
+// Everything you'd want to adjust for a given build lives here, for both board
+// revisions. The pin choices are not arbitrary — they are forced by which pins
+// can emit a TCA0 waveform and which can reach the ADC. See docs/hardware.md
+// for the datasheet reasoning before moving any of them.
 
 #pragma once
 #include <Arduino.h>
 
 // ---------------------------------------------------------------------------
-// Pin map — ATtiny3216, 20-pin SOIC
+// Board select
 // ---------------------------------------------------------------------------
 //
-// The LED channels are driven by TCA0's WO0/WO1/WO2 — the only waveform outputs
-// that exist in *normal* (16-bit) mode. Split mode would offer six outputs but
-// only 8 bits, which is 6.4× coarser than the PT4115 can resolve. See
-// deprecated/rev1-hardware.md.
+//   1 = rev1 — ATtiny814, 14-pin SOIC, hand-soldered board
+//   2 = rev2 — ATtiny3216, 20-pin SOIC, PCB (see hardware/rev2/)
 //
+// Set by the build environment (`-DGLIM_BOARD=2`), so `pio run -e rev2` picks
+// rev2 without editing this file. Everything below the pin map is shared.
+
+#ifndef GLIM_BOARD
+#define GLIM_BOARD 1
+#endif
+
+// ---------------------------------------------------------------------------
+// Pin map
+// ---------------------------------------------------------------------------
+//
+// Common to both boards: the LED channels are driven by TCA0's WO0/WO1/WO2 — the
+// only waveform outputs that exist in *normal* (16-bit) mode. Split mode would
+// offer six outputs but only 8 bits, which is 6.4× coarser than the PT4115 can
+// resolve. See docs/hardware.md.
+//
+// *Which* pins those outputs land on differs: rev1 uses the default PB0/PB1/PB2,
+// rev2 the alternates PB3/PB4/PB5 so that I²C and the UART can have PB0-PB2.
+//
+// Also common: PA1/PA2 are the ADC pins (AIN1/AIN2) and cannot do PWM, so the
+// joystick lives there on both boards.
+
+#if GLIM_BOARD == 1
+// ── rev1: ATtiny814, 14-pin ────────────────────────────────────────────────
+#define LED1_PIN   PIN_PB0   // TCA0 WO0 / CMP0
+#define LED2_PIN   PIN_PB1   // TCA0 WO1 / CMP1
+#define LED3_PIN   PIN_PB2   // TCA0 WO2 / CMP2
+#define LED_DIR_bm (PIN0_bm | PIN1_bm | PIN2_bm)   // PORTB pins the timer drives
+#define PWM_PORTMUX 0                              // all three at default position
+
+// IR on PB3 so its edge interrupt lands on PORTB_PORT_vect. PB3 is
+// interrupt-capable (synchronous only — fine, glim never sleeps while decoding).
+#define IR_PIN       PIN_PB3
+#define IR_PORT      PORTB
+#define IR_PIN_bm    PIN3_bm
+#define IR_PINCTRL   PORTB.PIN3CTRL
+#define IR_PORT_vect PORTB_PORT_vect
+
+// As built, the joystick's X and Y landed transposed vs. the schematic — swap
+// these two if left/right and up/down come out the wrong way round.
+#define JOY_X_PIN  PIN_PA2   // AIN2  (left/right → channel select)
+#define JOY_Y_PIN  PIN_PA1   // AIN1  (up/down    → brightness)
+#define JOY_SW_PIN PIN_PA7
+
+// rev1 has a WS2812 physically fitted; it is now driven as a plain "system on"
+// lamp in a single colour, the same meaning as rev2's discrete LED.
+#define STATUS_PIXEL_PIN PIN_PA6
+#define GLIM_STATUS_LED  0
+
+// No hardware UART here: PB2 is USART0's TXD but it's LED ch3, and USART0's only
+// alternate (PA1) is the joystick. Debug bit-bangs over SoftwareSerial instead.
+#define GLIM_DEBUG_HW_SERIAL 0
+#define GLIM_I2C 0                 // no free pins for TWI0 on the 14-pin part
+#define DEBUG_TX_PIN PIN_PA4
+#define DEBUG_RX_PIN PIN_PA5
+
+#elif GLIM_BOARD == 2
+// ── rev2: ATtiny3216, 20-pin ───────────────────────────────────────────────
 // All three LED channels sit on TCA0's **alternate** output pins, PB3/PB4/PB5,
 // rather than the default PB0/PB1/PB2. That is a deliberate reshuffle to fit
 // two peripherals the 14-pin rev1 could never have:
@@ -52,7 +101,7 @@
 //
 // The board runs at 5 V, so the Qwiic port is bridged by a **3.3 V LDO + BSS138
 // level translator** — Qwiic is a 3.3 V standard and a shared pull-up does not
-// substitute (see hardware/board.md §5).
+// substitute (see hardware/rev2/README.md §5).
 #define GLIM_I2C 1
 
 // The LDO's ENABLE pin, so firmware can cut power to the Qwiic bus and whatever
@@ -84,7 +133,7 @@
 // themselves and say it better: selecting one makes *that light* blink
 // (`ackBlink`), and a small indicator LED on each driver's DIM line mirrors that
 // channel's brightness for free — no pins, since it just hangs off the PWM
-// output. See hardware/board.md §7.
+// output. See hardware/rev2/README.md §7.
 //
 // One GPIO, one resistor, no library, no bit-bang, any supply rail.
 #define GLIM_STATUS_LED       1
@@ -98,6 +147,9 @@
 // expansion drivers, but only in split mode, which costs the 16-bit resolution.
 // Genuinely free: PA6 (DAC-capable) and PC3.
 
+#else
+#error "GLIM_BOARD must be 1 (rev1 / ATtiny814) or 2 (rev2 / ATtiny3216)"
+#endif
 
 #define NUM_CHANNELS 3
 

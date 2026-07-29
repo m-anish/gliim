@@ -11,7 +11,7 @@ or multi-room coordination belongs in [lokki](https://github.com/m-anish/lokki),
 not here.
 
 Companion documents:
-- [`../led-driver.md`](../led-driver.md) — the PT4115 channel, with component values
+- [`./led-driver.md`](./led-driver.md) — the PT4115 channel, with component values
 - [`input.md`](input.md) — joystick module *or* 5-way switch + resistor ladder
 
 ---
@@ -432,7 +432,7 @@ margin on a *lighting* product is worth more than deleting a sub-circuit.
   series Schottky if you'll accept ~0.4 V.
 - **TVS** across the LED rail: SMAJ26A for a 20 V rail.
 - **Bulk cap:** ≥100 µF electrolytic at the input, plus per-driver ceramics
-  ([`../led-driver.md`](../led-driver.md)).
+  ([`./led-driver.md`](./led-driver.md)).
 
 ---
 
@@ -440,7 +440,7 @@ margin on a *lighting* product is worth more than deleting a sub-circuit.
 
 ### LED channels ×3 (expandable to 6)
 Full circuit, component values, and layout rules in
-[**`led-driver.md`**](../led-driver.md). The three things that matter most:
+[**`led-driver.md`**](./led-driver.md). The three things that matter most:
 
 1. **10 kΩ pulldown on each DIM line, right at the driver.** Non-optional — see
    §1 item 3 and the divider maths in the driver doc.
@@ -535,7 +535,7 @@ resistor in the DIM path.
 
 ### Programming
 6-pin header: `UPDI (via 1 kΩ), GND, 5 V, ` + spare. serialUPDI wiring is in
-[`../../docs/hardware.md`](../../docs/hardware.md). Never fuse `RSTPINCFG` to
+[`../deprecated/rev1-hardware.md`](../deprecated/rev1-hardware.md). Never fuse `RSTPINCFG` to
 anything but UPDI.
 
 ---

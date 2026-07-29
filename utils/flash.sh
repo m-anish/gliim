@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# glim — build and flash over serialUPDI (rev1 ATtiny814 / rev2 ATtiny3216).
+# glim — build and flash over serialUPDI (ATtiny3216).
 #
 # The port is auto-detected (see utils/find-port.sh); override with --port.
 # With no action flags it builds and uploads.
@@ -12,7 +12,6 @@
 #   utils/flash.sh --debug         build with GLIM_DEBUG=1 and upload
 #   utils/flash.sh --debug --monitor  ...and then open the serial console
 #   utils/flash.sh --monitor       just watch a board that's already running
-#   utils/flash.sh --rev2          target the rev2 board (ATtiny3216)
 #   utils/flash.sh --list          just show the candidate ports
 #   utils/flash.sh --slow          retry-friendly upload speed (115200)
 
@@ -33,7 +32,6 @@ fi
 
 DO_BUILD=0 DO_UPLOAD=0 DO_FUSES=0 DO_MONITOR=0 DO_CLEAN=0 DO_LIST=0
 PORT="" SPEED="" DEBUG=0 DRY=0 VERBOSE=0
-REV=rev1
 MONITOR_BAUD=115200
 
 usage() {
@@ -53,8 +51,6 @@ Actions (default: --upload):
   -l, --list         List candidate serial ports and exit.
 
 Options:
-  -r, --rev N        Target board: 1 = rev1 / ATtiny814 (default),
-                     2 = rev2 / ATtiny3216. Also accepts --rev1 / --rev2.
   -d, --debug        Build with GLIM_DEBUG=1 (telemetry on the debug TX pin).
   -p, --port PORT    Use this port instead of auto-detecting.
   -s, --speed BAUD   Upload speed (default: platformio.ini, 230400).
@@ -65,7 +61,7 @@ Options:
 
 Notes:
   * --monitor needs different wiring than UPDI: the adapter's RX goes to the
-    debug TX pin (rev1 PA4, rev2 PC2), not to PA0. Only useful with --debug.
+    debug TX pin (PB2), not to PA0. Only useful with --debug.
   * --debug forces the IR decoder off: SoftwareSerial's interrupt dispatcher
     claims the PORT vectors the IR ISR needs. See include/config.h.
   * Tunables (ramp speed, deadzones, PWM tiers, axis inversion) live in
@@ -84,13 +80,8 @@ while (( $# )); do
     -c|--clean)   DO_CLEAN=1 ;;
     -l|--list)    DO_LIST=1 ;;
     -d|--debug)   DEBUG=1 ;;
-    --rev1)       REV=rev1 ;;
-    --rev2)       REV=rev2 ;;
-    -r|--rev)     case "${2:-}" in
-                    1|rev1) REV=rev1 ;;
-                    2|rev2) REV=rev2 ;;
-                    *) echo "--rev takes 1 or 2" >&2; exit 1 ;;
-                  esac; shift ;;
+    -r|--rev|--rev1|--rev2)
+                  echo "glim is rev2-only now; rev1 is retired in deprecated/." >&2; exit 1 ;;
     -n|--dry-run) DRY=1 ;;
     -v|--verbose) VERBOSE=1 ;;
     --slow)       SPEED=115200 ;;
@@ -112,13 +103,7 @@ if (( !DO_BUILD && !DO_UPLOAD && !DO_FUSES && !DO_MONITOR && !DO_CLEAN )) ||
   DO_UPLOAD=1
 fi
 
-# PlatformIO environment names per board revision. rev1 keeps the historical
-# names so existing muscle memory and docs still work.
-if [[ "$REV" == rev2 ]]; then
-  ENV_MAIN=rev2;      ENV_FUSES=rev2_fuses
-else
-  ENV_MAIN=ATtiny814; ENV_FUSES=set_fuses
-fi
+ENV_MAIN=glim; ENV_FUSES=fuses
 
 # --- helpers -----------------------------------------------------------------
 
@@ -154,11 +139,11 @@ if [[ -n "$SPEED" ]]; then
   echo "Upload speed: $SPEED" >&2
 fi
 
-echo "Target: $REV  (env $ENV_MAIN)" >&2
+echo "Target: ATtiny3216  (env $ENV_MAIN)" >&2
 
 if (( DEBUG )); then
   export PLATFORMIO_BUILD_FLAGS="-DGLIM_DEBUG=1"
-  if [[ "$REV" == rev2 ]]; then DBGPIN=PC2; else DBGPIN=PA4; fi
+  DBGPIN=PB2
   echo "Build: GLIM_DEBUG=1 (telemetry on $DBGPIN @${MONITOR_BAUD}, IR disabled)" >&2
 fi
 
