@@ -223,23 +223,29 @@ Because they are soldered together, there is no "in" and no "out". Label them
 both **BUS**. Any node works anywhere in the chain, including at either end, and
 either cable can go in either socket.
 
-**4. Make cable orientation harmless.**
+**4. One series Schottky is enough for polarity.**
 
-A reversed RJ11 cord swaps both pairs (§ *2-pair CAT5 on RJ11*). Two cheap parts
-make that a non-event instead of a dead panel:
+Modular connectors are keyed, so the *plug* cannot go in wrong — the only real
+exposure is a cable that was wired reversed, and if you crimp your own or buy
+straight-through leads that is already unlikely. A full bridge rectifier is
+over-engineering for that risk.
 
-- **A Schottky bridge rectifier on the power pair.** Either polarity now works.
-  Four Schottkys cost ~0.6 V, so distribute **6–7 V** rather than 5 V to leave
-  the 3.3 V LDO its headroom.
-- **A/B swap corrected in firmware.** Swapping A and B simply inverts the
-  received signal, and the ATtiny can undo that in hardware by setting
-  `PORT_INVEN_bm` in the `PINnCTRL` of the USART's RX and TX pins. Detection is
-  trivial with a fail-safe receiver: a correct idle line sits HIGH, a swapped one
-  sits LOW. If RX has been continuously low for >20 ms — far longer than any
-  valid byte — flip `INVEN` and carry on.
+Keep **one series Schottky** on the panel's +V input. It costs ~₹2 and ~0.3 V,
+lets you stay on 5 V distribution, and converts the one bad outcome — a
+destroyed panel — into "this panel does not light up", which is diagnosable in
+seconds. That is the whole point; the bridge only bought the ability to *work*
+when reversed, which is not worth 0.6 V and four parts.
 
-Together these mean the cable **cannot be plugged in wrong**, in either socket,
-either way round.
+**On RJ45, pick pins 4/5 for data.** The blue pair is identical in T568A and
+T568B, so a mixed-standard or crossover lead cannot swap it. (Pins 1/2 and 3/6
+*do* swap between the standards.) The blue pair is also where an RJ11 6P4C
+plug's centre pair lands in an RJ45 jack, so the two connector systems agree.
+
+*Optional, ~10 lines of firmware:* an A/B swap merely inverts the received
+signal, and the ATtiny can undo it in hardware via `PORT_INVEN_bm` in the RX and
+TX `PINnCTRL`. With a fail-safe receiver a correct idle line sits HIGH and a
+swapped one sits LOW, so "RX continuously low for >20 ms" is a reliable detector.
+Cheap insurance; not a requirement given keyed connectors.
 
 **5. No addresses to assign.**
 
@@ -274,6 +280,58 @@ distribution voltage.
 everything downstream. Powering a *node* down does not, since the pass-through is
 copper. For a fixed installation that trade is worth it — it buys the stub-free
 linear topology RS-485 wants.
+
+#### Use a generic RS-485 module, not a transceiver footprint
+
+**Yes — put a 6-pin header on the PCB and drop a ready-made MAX485-class module
+on top.** At 2–6 nodes this is the right call:
+
+- No fine-pitch part to place, and no bus-facing circuitry to respin if you get
+  it wrong.
+- **The transceiver is the part that dies.** It is the only thing connected to a
+  long cable leaving the enclosure, so it eats the surges. Making it a
+  ₹40 socketed module rather than a soldered IC turns a scrapped board into a
+  30-second swap.
+- Available everywhere, and ideal for step 1 of §11.
+
+Header pinout: `VCC · GND · DI · RO · DE · RE`. Keep **DE and RE on separate
+pins** rather than jumpering them — most modules break them out separately
+anyway, and §6.3 uses the split for transmit read-back collision detection.
+
+**⚠ The one thing that will actually bite you: on-board termination.**
+
+Many of these modules ship with a **120 Ω resistor already fitted across A–B**,
+and some add bias resistors. Two terminated nodes is the textbook bus. **Six
+terminated nodes is 20 Ω**, which is well under the ~54 Ω an RS-485 driver is
+specified to drive — the differential voltage collapses toward the 200 mV
+receiver threshold and the bus becomes flaky in a way that looks like a firmware
+bug.
+
+Before installing more than two: **measure A–B with a multimeter.** ~120 Ω means
+a terminator is fitted; desolder it (or lift the solder jumper) on every node.
+Per *Plug-and-play* above you want **none** of them anyway.
+
+Pre-fitted **bias** resistors are the opposite — harmless and mildly useful. Six
+nodes' worth of 10 kΩ pairs in parallel is ~1.7 kΩ, a few milliamps, and it
+covers the idle-line problem if your module has a plain non-failsafe MAX485.
+
+**What a generic module costs you.** You no longer choose the transceiver, and
+almost every module carries a plain **MAX485**: fast edges, no true fail-safe.
+Re-deriving the two properties the plug-and-play design leaned on:
+
+- **Termination — still not needed.** Fast ~10 ns edges *do* make the line
+  electrically long at 15 m, so reflections genuinely occur. But they settle in
+  ~500 ns against an 8.7 µs bit sampled at 4.3 µs, so they still cannot cause a
+  bit error at 115200. You pay in radiated EMI, not in reliability. **Do not
+  raise the baud rate** on fast-slew parts without revisiting this.
+- **Bias — needed again**, since a plain MAX485 has no fail-safe threshold.
+  Either use the module's own bias resistors (above), or fit one network on the
+  driver node.
+
+So a generic module works fine here. Buying a **slew-limited, true-failsafe**
+part (MAX3082 / SN65HVD3082E / THVD1410) is still the better engineering — lower
+EMI, no bias resistors, headroom to go faster — but it is an optimisation, not a
+prerequisite. If a module gets you building this month, use the module.
 
 #### Cheaper cable — 4/6-core telephone works, with conditions
 
@@ -692,10 +750,11 @@ everywhere** is worth considering purely for BOM and toolchain simplicity.
 
 | Part | Where | ~Cost | Note |
 |---|---|---|---|
-| **MAX3082** (5 V) / **SN65HVD3082E**, **THVD1410** (3.3 V) | every node | ~₹17–40 | half-duplex RS-485, **slew-limited + true fail-safe**. Slew limiting removes termination; fail-safe removes bias. MAX483/487/SP3485 work but need one bias network. |
+| **RS-485 module** (MAX485 breakout) | every node | ~₹40–60 | simplest path; socket it on a 6-pin header. **Check for a fitted 120 Ω and remove it.** |
+| *or* **MAX3082** / **SN65HVD3082E** / **THVD1410** | every node | ~₹17–40 | bare IC, **slew-limited + true fail-safe** — lower EMI and no bias resistors. An optimisation, not a prerequisite. |
 | 120 Ω 1 % | **none** | — | termination is unnecessary at ≤115200 / ~100 m with slew-limited parts; if ever needed, fit it in a 6P4C *plug*, not on a board |
 | Bias resistors | **none** | — | eliminated by choosing a true-failsafe receiver; otherwise one network on the driver node only |
-| Schottky bridge | per panel | ~₹5 | makes cable polarity harmless; distribute 6–7 V to cover its ~0.6 V |
+| Schottky diode (series) | per panel | ~₹2 | reverse-polarity protection: a miswired cable means "does not power up", not a dead board |
 | **EC11 encoder** + knob | per channel | ₹25 | 20 detents, with push |
 | 1 kΩ + 10 nF | per encoder line | — | RC debounce |
 | RJ45 jacks or 4-pin screw terminals | per node | — | CAT5 in / CAT5 out for daisy-chain |
@@ -712,7 +771,7 @@ everywhere** is worth considering purely for BOM and toolchain simplicity.
 | **Bus speed** | 115200 is safe on twisted pair. Drop to 19200–38400 on untwisted cable — nothing here is throughput-bound. |
 | **Free-running vs polled** | Free-running, per the collision numbers in §6.3. Polled stays an easy retrofit (~9.5 ms cycle at 6 nodes) if you want determinism during bring-up. |
 | **Isolation** | Only needed if panels sit on different mains circuits. Costs ~₹200/node. |
-| **Fail-safe transceiver sourcing** | The plug-and-play story leans on it. If MAX3082/SN65HVD3082E/THVD1410 are hard to get locally, fall back to MAX483/487 plus one bias network on the driver node — panels stay identical either way. |
+| **Module or bare IC?** | Start with a generic MAX485 module on a 6-pin header — cheap, swappable, and the transceiver is the part that dies. Move to a bare slew-limited fail-safe IC only if EMI or a higher baud rate ever justifies it. |
 | **Zone count** | 16 is almost certainly plenty for one hall. |
 | **Does the driver keep IR?** | It is 1 pin and already written. Probably yes, as a per-node override. |
 | **Panel power** | **5 V down the pair → 3.3 V LDO on the panel, MCU at ≤10 MHz.** No buck converter anywhere. Revisit only if a panel grows a real load. |

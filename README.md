@@ -61,7 +61,7 @@ intact, plus the six hard-won findings worth carrying forward.
 | ATtiny3216 | driver node — 3× 16-bit PWM, RS-485, IR, I²C, status LED |
 | ATtiny1616 | control panel — 3× EC11, RS-485 |
 | 3× PT4115 | buck LED drivers, one per channel (up to ~5 LEDs each) |
-| MAX483 / MAX3483 | slew-limited RS-485 transceiver, one per node (~₹17) |
+| RS-485 module | generic MAX485 breakout on a 6-pin header, one per node (~₹40) |
 | EC11 encoder | one per channel, with push switch |
 | USB-C PD trigger | 12–20 V for the LED rail, 5 V for logic |
 | 2-pair CAT5 + RJ11 (~₹7/m) | one cable carries the bus **and** panel power |
