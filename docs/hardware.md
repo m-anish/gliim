@@ -19,7 +19,7 @@ now spoken for.
 | IR receiver | PB3 | TSOP38238 OUT, falling-edge interrupt |
 | Joystick X | PA2 | ADC AIN2 (left/right → channel select) |
 | Joystick Y | PA1 | ADC AIN1 (up/down → brightness) |
-| Status pixel (WS2812) | PA6 | plain GPIO — colour shows the selected channel |
+| Status LED (WS2812, as fitted) | PA6 | plain GPIO — lit while the system is running |
 | Joystick SW | PA7 | digital input, internal pull-up, active-low |
 | UPDI (program) | PA0 | UPDI, 1 kΩ in series |
 | Debug TX | PA4 | SoftwareSerial, **debug builds only** |

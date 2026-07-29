@@ -129,8 +129,9 @@ requirement can't be met on a tiny part:
 1. ✅ **Tier 0 polish** — dithering, soft transitions, watchdog, EEPROM
    versioning, and the factory-reset gesture are all shipped.
 2. **Indicator LEDs** (your idea) — do it now; it's free and informative.
-3. ✅ **Status pixel** — WS2812 on **PA6**, colour = selected channel, dim
-   locator glow when all-off. Fitted and shipped.
+3. ✅ **Status LED** — on **PA6**, meaning "system on". Not channel-coded: the
+   channels indicate themselves (ack-blink for selection, DIM-line indicators for
+   level). Fitted and shipped.
    **IR receiver** — still to come: **learn-any-NEC** handling, receiver on **PB0**.
 4. **rev2 PCB** — fold the above in, add protection, decide 3 vs 6 channels.
 5. **Optional sensors** (ambient / PIR) — only if a given install wants automation,

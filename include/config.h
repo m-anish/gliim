@@ -241,7 +241,7 @@
 // past what dithering bought and costs no flicker margin.)
 
 // ---------------------------------------------------------------------------
-// Status pixel (WS2812)
+// Status indicator
 // ---------------------------------------------------------------------------
 
 // A single addressable LED showing which channel the joystick is steering —
