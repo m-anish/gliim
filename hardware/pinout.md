@@ -417,10 +417,55 @@ So:
 
 - **≤2 panels, ≤20 m → distribute 5 V.** No regulator on the panel at all. This
   is the fewest parts, no heat, and nothing to go wrong.
-- **3+ panels or >25 m → distribute 12 V** and drop it with a linear regulator at
-  each panel (~0.2 W at 30 mA). This also decouples the panel's supply from the
-  main board's logic rail, which is worth something on a long cable carrying a
-  switching WS2812.
+- **3+ panels or >25 m → distribute the raw 15 V** from the PD trigger and drop
+  it with a linear regulator at each panel. This also decouples the panel's supply
+  from the main board's logic rail, which is worth something on a long cable
+  carrying a switching WS2812.
+
+### Distributing 15 V
+
+The board already has 15 V (PD trigger) and 5 V (buck). **Send the 15 V** — there
+is no reason to make an intermediate 12 V, and the higher the rail the less the
+drop matters:
+
+| Bus voltage | Drop, 15 m @ 20 mA | As a fraction |
+|---|---|---|
+| 5 V | 51 mV | 1.0 % |
+| **15 V** | 51 mV | **0.34 %** |
+
+The current is the same either way — a linear regulator draws its output current
+at the input — so the higher rail simply swamps the drop. Cable length stops
+being a design constraint.
+
+**Regulator dissipation** is (15 − 5) × I, so package choice matters more than
+part choice:
+
+| Load | Power | SOT-23 | SOT-89 | **SOT-223** | DPAK |
+|---|---|---|---|---|---|
+| 20 mA typical | 0.20 W | +50 °C | +30 °C | **+15 °C** | +10 °C |
+| 40 mA peak | 0.40 W | +100 °C | +60 °C | **+30 °C** | +20 °C |
+
+**Use SOT-223 or DPAK with a copper pour.** SOT-23 is not acceptable at 15 V in —
+it was fine at 12 V and is not here.
+
+**⚠ Check the regulator's input rating, not just its dropout.** Several common
+parts die on a 15 V rail:
+
+| Part | V_in max | |
+|---|---|---|
+| MCP1702 | 13.2 V | **destroyed** |
+| AMS1117 | 15 V | at its absolute limit — do not |
+| **7805 / LM317 (DPAK)** | 35 / 40 V | **fine** |
+
+**RF-only panels are not on this cable at all.** A panel with an HC-12 and no
+RS-485 has no bus connection, so it needs its own supply — which is exactly the
+"needs a mains socket at every panel" cost noted in architecture.md §5. It also
+means no panel ever has to survive the HC-12's 100 mA transmit burst through this
+regulator: HC-12 panels are not the ones being fed from the cable.
+
+**⚠ Label the jacks.** An RJ45 socket carrying 15 V on pin 8 is a trap for
+whoever services this later — the connector invites plugging in Ethernet gear.
+Silkscreen both jacks clearly (e.g. `GLIM BUS — NOT ETHERNET`).
 
 **Fit both.** Put a small linear-regulator footprint on the panel plus a
 **bypass jumper** across it. Jumper fitted = 5 V straight through; regulator

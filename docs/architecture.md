@@ -693,8 +693,16 @@ Two edge cases, both cheap:
 - **Driver boots mid-session** and has no `last_seen`: record the first counter
   without applying it.
 - **Panel reboots** and its counter resets to 0, implying a huge negative delta:
-  **clamp** — reject any |delta| > ~64. Nobody turns a knob 64 detents between
-  two messages 50 ms apart. Clamping also catches corrupted frames that pass CRC.
+  **clamp *and re-baseline*.** Reject any |delta| > ~64 — nobody turns a knob 64
+  detents between two messages 50 ms apart — but then **set `last_seen` to the
+  value just received** and apply nothing.
+
+  ⚠ The re-baseline is not optional. Clamping alone permanently bricks a rebooted
+  panel: `last_seen` stays at the pre-reboot value, so *every* subsequent report
+  is also a huge negative delta and is also clamped, forever. With re-baselining
+  the next report yields a correct small delta and the knob works again. A
+  corrupted frame that slips past CRC costs two frames of recovery instead of
+  one, which is invisible.
 
 ### 6.2 Zones
 
@@ -853,7 +861,47 @@ than events: batching 20 ms of detents into one frame loses no information, sinc
 the counter already carries the accumulated total. An event-based protocol could
 not do this.
 
-### 6.7 How far this scales
+### 6.7 Mixed transports — how an RF panel and a wired panel stay consistent
+
+Worth walking through, because the obvious worry turns out not to exist.
+
+**An RF panel never needs a wired panel's counter.** Counters are keyed per
+*(node, encoder)* and each is differenced independently against that source's own
+`last_seen`. Panel B has no use for Panel A's number and never sees it. Nothing
+has to be reconciled between panels.
+
+What a panel might need is the **zone's current level**, and only if it displays
+one. That travels the other way — driver → panels — as the `LEVELS` beacon of
+§6.4.
+
+**The main board is the bridge, for free.** It is an ATtiny3226 with two USARTs,
+so it hears RS-485 on USART0 and HC-12 on USART1 simultaneously, and it sends the
+beacon on **both**. So:
+
+```
+   Panel A (RS-485) turns ──► main board USART0
+                              main board applies the delta to the zone
+                              main board broadcasts LEVELS on USART0 *and* USART1
+   Panel B (RF)      ◄──────  hears it on HC-12, updates its display
+```
+
+No forwarding logic, no state sharing between panels. The driver owns the level;
+everyone else either nudges it or watches it.
+
+**One case does need forwarding:** more than one driver node, with mixed
+transports — say driver 2 is wired-only while panel B is RF-only. Panel B's
+reports reach driver 1 (which has both radios) but not driver 2. The
+dual-transport node has to relay counter reports between media, which is exactly
+the bridge behaviour in §5: **discard frames bearing your own source ID, and carry
+a forwarded bit or TTL so nothing is relayed twice.** With a single driver node —
+the common case — none of this applies.
+
+**A panel that just powered on** knows nothing, and does not need to: the ~1 Hz
+`LEVELS` beacon syncs its display within a second, and its own counters are
+re-baselined by the driver on first sight (§6.1). If panels display level, make
+the beacon definite rather than optional.
+
+### 6.8 How far this scales
 
 | Limit | Ceiling | Notes |
 |---|---|---|
