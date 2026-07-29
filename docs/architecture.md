@@ -884,7 +884,14 @@ a bus it gains a second job — showing link state.
 
 ---
 
-## 8. Pin budgets — ATtiny3226
+## 8. Pin budgets — ATtiny3226 / ATtiny3216
+
+> **Numbered, layout-ready pinouts for both boards are in
+> [`../hardware/pinout.md`](../hardware/pinout.md).** This section covers the
+> reasoning; that file has the package pin numbers.
+
+**Main board = ATtiny3226** (two USARTs → RS-485 and HC-12 both live).
+**Panel = ATtiny3216** (one USART → RS-485 *or* HC-12, never both).
 
 **Settled on the ATtiny3226** (tinyAVR 2-series, 20-pin SOIC, 32 KB flash,
 **3 KB SRAM**, 18 I/O). Two hardware USARTs mean RS-485 and HC-12 can both be
@@ -925,7 +932,11 @@ second UART away from PORTB, where the LEDs and USART0 live.
 14 assigned, **4 free**. Note ch3 *must* take WO2's alternate PB5, because WO2's
 default PB2 is USART0's TXD.
 
-### Control panel
+### Control panel — ATtiny3216, one USART
+
+The panel takes **either** transport, not both, so a single USART0 is enough and
+the 3216 stays. Populate one module; with only one fitted there is no contention
+and the RX select jumper is unnecessary.
 
 | Pin | Function |
 |---|---|

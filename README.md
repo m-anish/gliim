@@ -58,7 +58,8 @@ intact, plus the six hard-won findings worth carrying forward.
 
 | Part | Role |
 |------|------|
-| ATtiny3226 | both node types — **two USARTs**, so RS-485 and HC-12 can both be live |
+| ATtiny3226 | main board — **two USARTs**, so RS-485 and HC-12 can both be live |
+| ATtiny3216 | control panel — one USART, so RS-485 **or** HC-12 |
 | 3× PT4115 | buck LED drivers, one per channel (up to ~5 LEDs each) |
 | RS-485 auto-flow module | MAX485 + TVS, auto-direction, one per node (~₹31) |
 | HC-12 (optional) | same footprint choice — 433 MHz drop-in where cable can't reach |
@@ -66,7 +67,7 @@ intact, plus the six hard-won findings worth carrying forward.
 | USB-C PD trigger | 12–20 V for the LED rail; 12 V down the bus for panels |
 | 2-pair CAT5 + RJ11 (~₹7/m) | one cable carries the bus **and** panel power |
 
-Full board spec and pin map: [hardware/board.md](hardware/board.md). The LED
+**Numbered pinouts for both boards: [hardware/pinout.md](hardware/pinout.md).** Wider board spec: [hardware/board.md](hardware/board.md). The LED
 channel itself — topology, sense resistor, inductor, layout, thermals — is in
 [hardware/led-driver.md](hardware/led-driver.md).
 
@@ -106,7 +107,8 @@ glim/
 │   ├── flash.sh            build/flash/monitor wrapper (start here)
 │   └── find-port.sh        locate the USB-serial programmer
 ├── hardware/
-│   ├── board.md            the driver node: MCU, pin map, power, subsystems
+│   ├── pinout.md           ← numbered pinouts, both boards, layout-ready
+│   ├── board.md            the driver node: MCU, power, subsystems
 │   ├── led-driver.md       the LED channel: PT4115, boost options, CV strips
 │   └── input.md            input circuits (partly superseded by the bus)
 ├── ROADMAP.md             where it goes next
