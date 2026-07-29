@@ -6,10 +6,10 @@ that map), the power tree, and how to program the chip.
 
 ## Pin map
 
-ATtiny814, 14-pin SOIC — this is the **rev1** board. rev2 (ATtiny3216) uses the
-same LED and joystick pins and moves the peripherals to PORTC; see
-[`../hardware/rev2/README.md`](../hardware/rev2/README.md). All twelve I/O are
-now spoken for.
+ATtiny814, 14-pin SOIC — this is the **rev1** board, and all twelve I/O are now
+spoken for. rev2 (ATtiny3216) keeps the joystick on PA1/PA2 but relocates the LED
+channels to PB3/PB4/PB5 so PB0–PB2 can carry I²C and a hardware UART; see
+[`../hardware/rev2/README.md`](../hardware/rev2/README.md).
 
 | Signal | Pin | On-chip function |
 |--------|-----|------------------|
@@ -163,10 +163,11 @@ utils/flash.sh           # build + flash firmware
 The adapter is auto-detected — `utils/flash.sh --list` shows what it can see,
 `--port` overrides it, and `--slow` drops the upload to 115200 if it's flaky.
 
-**Fuses matter:** a factory chip is fused for a 20 MHz base oscillator, while the
-firmware is built for 16 MHz — without `--fuses` every timing (PWM frequency,
-`millis()`, baud) runs ~25% fast. `--fuses` also enables EESAVE, so your saved
-brightness survives reflashing. It never touches the UPDI pin configuration.
+**Fuses matter:** they select the oscillator the firmware is built against
+(`board_build.f_cpu`, currently **20 MHz**). Flash a chip whose `OSCCFG` still
+says 16 MHz and every timing — PWM frequency, `millis()`, baud — runs wrong by
+that ratio. `--fuses` also enables EESAVE, so your saved brightness survives
+reflashing, and sets BOD. It never touches the UPDI pin configuration.
 
 ## Datasheet
 
