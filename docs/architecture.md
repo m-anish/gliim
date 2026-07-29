@@ -127,9 +127,9 @@ range so dim settings trim finely, faster when spun. `RAMP_LOW_FACTOR` and the
 | **DMX512** | Is RS-485 at 250 kbaud with a lighting protocol on top — but unidirectional controller → fixture, and our panels are *inputs*. Worth knowing about if glim ever needs to sit in a stage-lighting rig. |
 | **DALI** | The actual industry standard for this exact job: 2-wire, polarity-insensitive, 1200 baud, designed for building lighting. Needs specific transceivers and a real stack. Right answer for a commercial product, over-heavy for this one. |
 
-### Wiring: CAT5/CAT6
+### Wiring
 
-One cable carries everything:
+One cable carries data and panel power. **CAT5/CAT6** is the default:
 
 | Pair | Use |
 |---|---|
@@ -143,6 +143,72 @@ Panels buck 12 V down locally. Voltage drop is a non-issue: 15 m of 24 AWG is
 Ground is shared, which RS-485 needs — it is differential, not isolated. If
 panels end up on different circuits, add isolated transceivers (ADM2582 class)
 and the problem goes away, at a cost.
+
+#### Cheaper cable — 4/6-core telephone works, with conditions
+
+The usual "you must use twisted pair" advice is aimed at long, fast buses. Ours
+is short and slow, and two things change the calculus:
+
+- **Reflections never reach the sampling instant.** Propagation is ~5 ns/m, so
+  15 m is a 150 ns round trip. A bit at 115200 baud is 8.7 µs and is sampled at
+  mid-bit — ringing has settled roughly 8× over. Uncontrolled cable impedance
+  simply does not matter at this speed and length.
+- **The counter protocol absorbs errors.** A corrupted frame is dropped and the
+  next one carries the correct cumulative value (§6.1). A 1 % frame error rate
+  is invisible to a human turning a knob.
+
+What twist actually buys is **noise rejection**, and that is the one real loss.
+Untwisted parallel conductors have a defined loop area, so induced interference
+arrives as *differential* noise the receiver cannot reject. Three changes make
+that acceptable:
+
+1. **Use a slew-rate-limited transceiver.** **MAX483** or **MAX487** (both
+   limited to ~250 kbps) instead of MAX485, or SN65HVD3082. Same price, same
+   pinout. Edges stretch from tens of nanoseconds to ~1 µs, which is far longer
+   than the 150 ns round trip — the line becomes electrically *short*, so there
+   are no reflections at all and radiated EMI drops in both directions. **This is
+   the single highest-value change and is worth doing even on CAT5.**
+2. **Drop the baud rate to 19200 or 38400.** Nothing here is throughput-bound —
+   it is a human turning a knob. At 19200 a bit is 52 µs, ~350× the round trip.
+3. **Send 5 V, not 12 V**, so the panel needs no buck converter. A switcher
+   sitting on untwisted conductors right beside the data pair is the most likely
+   source of trouble, and deleting it deletes the problem. A panel is light —
+   ATtiny at a reduced clock (it has nothing to compute), a transceiver, an LED:
+   ~15 mA. Over 15 m of 26 AWG that is ~2.1 Ω per conductor, so ~60 mV of drop.
+   Even four panels on one trunk stay under ~250 mV.
+
+**Conductor order matters on flat cable** — keep A and B adjacent to minimise
+loop area, and put ground between the data and the power conductors:
+
+```
+  6-core:   +5V │ GND │  A  │  B  │ GND │ +5V      ← ideal
+  4-core:         GND │  A  │  B  │ +5V           ← fine if +5V is quiet
+```
+
+Decoupling at each panel (100 nF + 10 µF across +5 V/GND) keeps the power
+conductors from becoming an aggressor.
+
+**Termination becomes optional** with slew-limited drivers at this length — try
+without it first. The **idle bias resistors are not optional**; they define the
+line state when no one is driving, and without them the receiver floats and
+invents start bits.
+
+| Cable | Verdict |
+|---|---|
+| **CAT5e/CAT6 UTP** | Default. Twisted, 8 conductors, RJ45 ecosystem everywhere. The price gap to phone cable is small — check locally before optimising it away. |
+| **Round twisted telephone (2–3 pair)** | **Fine.** If it is twisted, the objection disappears. |
+| **Flat 6-core "silver satin"** | Workable with all three changes above. Use the conductor order shown. |
+| **Flat 4-core** | Workable, no spare conductors, no room for a second ground. |
+| **4/6-core alarm or CCTV cable** | Common and cheap; often shielded, which substitutes well for twist. Tie the shield to GND **at one end only**. |
+
+Whichever you pick, **do not run it parallel to mains** for long stretches —
+cross at right angles where you can. This matters much more without twist.
+
+**Measure rather than guess.** Environment decides this, not arithmetic. Put a
+CRC-error counter in the panel firmware and read it over the debug UART, so
+step 1 of §11 produces a number instead of an impression. If the error rate is
+low single-digit percent, the counter protocol hides it entirely; if it is
+worse, you have a specific reason to upgrade the cable rather than a hunch.
 
 ---
 
@@ -296,9 +362,9 @@ everywhere** is worth considering purely for BOM and toolchain simplicity.
 
 | Part | Where | ~Cost | Note |
 |---|---|---|---|
-| **MAX485** (5 V) or SP3485 (3.3 V) | every node | ₹17 | half-duplex RS-485 transceiver |
-| 120 Ω 1 % | 2 (bus ends only) | — | termination |
-| 680 Ω ×2 | 1 place on the bus | — | idle bias, A high / B low |
+| **MAX483 / MAX487** (5 V) | every node | ~₹17 | half-duplex RS-485, **slew-limited** — prefer over MAX485, see cabling |
+| 120 Ω 1 % | 2 (bus ends only) | — | termination; optional at this length with slew-limited parts |
+| 680 Ω ×2 | 1 place on the bus | — | idle bias, A high / B low. **Not optional.** |
 | **EC11 encoder** + knob | per channel | ₹25 | 20 detents, with push |
 | 1 kΩ + 10 nF | per encoder line | — | RC debounce |
 | RJ45 jacks or 4-pin screw terminals | per node | — | CAT5 in / CAT5 out for daisy-chain |
@@ -312,12 +378,12 @@ everywhere** is worth considering purely for BOM and toolchain simplicity.
 | Question | Notes |
 |---|---|
 | **Do panels display level?** | If yes they need an indicator per encoder (a small LED, or an LED ring) and must listen to `LEVELS` beacons. If no, panels are write-only and the protocol gets simpler. **Decide this first — it changes the panel BOM and half the protocol.** |
-| **Bus speed** | 115200 is safe and fast. 250 k if you ever want DMX-adjacent tooling. |
+| **Bus speed** | 115200 is safe on twisted pair. Drop to 19200–38400 on untwisted cable — nothing here is throughput-bound. |
 | **Free-running vs polled** | Start free-running (§6.3). Only move to polled if collisions actually bite. |
 | **Isolation** | Only needed if panels sit on different mains circuits. Costs ~₹200/node. |
 | **Zone count** | 16 is almost certainly plenty for one hall. |
 | **Does the driver keep IR?** | It is 1 pin and already written. Probably yes, as a per-node override. |
-| **Panel power** | 12 V on the spare pairs is the assumption above. Confirm against the longest run and the worst-case panel current. |
+| **Panel power** | 12 V + a local buck on CAT5; **5 V direct, no buck** on cheap cable. The 5 V route is simpler and quieter — consider it the default unless a panel grows a real load. |
 
 ---
 
