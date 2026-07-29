@@ -350,23 +350,49 @@ The wider argument is simpler: **phone cable is effectively extinct.** Nobody ha
 a spare RJ11 lead to plug in by accident, and nothing else in the building uses
 the socket. A dedicated bus deserves a connector that means only one thing.
 
-| 6P4C position | Signal |
+Two workable assignments. Both put data on the **centre positions (3/4)**, which
+minimises the ~10 mm of untwist the crimp imposes.
+
+**Option A — power on 2/5 (works with common 6P4C plugs)**
+
+| Position | Signal |
 |---:|---|
+| 1, 6 | no connect |
 | **2** | **GND** |
 | **3** | **RS-485 A** |
 | **4** | **RS-485 B** |
-| **5** | **V_BUS** (15 V) |
+| **5** | **V_BUS** |
 
-Data goes on the **centre pair (3/4)**, which minimises the ~10 mm of untwist the
-crimp imposes; power takes the next pair out (2/5). Both are proper twisted pairs
-in the cable.
+Uses exactly the four positions a standard **6P4C** plug contacts, so the
+commonest crimps and plugs fit. **Requires the series Schottky** — see below.
 
-### ⚠ Refit the series Schottky
+**Option B — power on 1/2 (reversal-immune, needs 6P6C plugs)**
 
-Dropping RJ45 costs the reversal immunity that came from having unconnected pins.
-With 6P4C all four positions carry signal, and a modular reversal is symmetric
-about the centre — **every** pair swaps internally, so no pin assignment can dodge
-it. A reversed cord swaps GND and V_BUS.
+| Position | Signal |
+|---:|---|
+| **1** | **V_BUS** |
+| **2** | **GND** |
+| **3** | **RS-485 A** |
+| **4** | **RS-485 B** |
+| 5, 6 | no connect |
+
+A modular reversal maps 1↔6 and 2↔5, so with 5/6 unconnected **both power
+conductors land on dead pins** and the panel simply does not come up — the same
+trick RJ45 gave us. A/B still swap harmlessly. **No Schottky needed.**
+
+The cost is that a 6P4C plug only contacts positions 2–5, so this needs **6P6C
+plugs** throughout. Since you are crimping custom leads anyway, put the blue pair
+in 3/4 and the orange pair in 1/2 — the telephony pair convention (1-6, 2-5, 3-4)
+does not bind you when both ends are your own.
+
+**Pick B if 6P6C plugs are easy to source locally; otherwise A plus the Schottky.**
+Do not mix the two across one installation.
+
+### ⚠ The series Schottky (Option A only)
+
+With power on 2/5, a modular reversal is symmetric about the centre and swaps
+GND against V_BUS — there is no dead pin for it to land on. Option B above avoids
+this structurally; if you take Option A, fit the diode.
 
 At 15 V that is cheap to insure against: a **series Schottky on `V_BUS`** costs
 ~0.3 V, which is **2 %** of a 15 V rail rather than the 6 % it cost of a 5 V one.
@@ -472,6 +498,12 @@ part choice:
 
 **Use SOT-223 or DPAK with a copper pour.** SOT-23 is not acceptable at 15 V in —
 it was fine at 12 V and is not here.
+
+**⚠ Name the bus power net `V_BUS`, never `VDD`.** `VDD` is the MCU's own supply
+pin name and will collide with the 5 V rail on the schematic — and this net may
+carry **15 V**. A net-name collision between a 15 V bus conductor and a 5 V logic
+rail is a board-destroying class of error, and it is invisible in a netlist until
+smoke.
 
 **⚠ Check the regulator's input rating, not just its dropout.** Several common
 parts die on a 15 V rail:
