@@ -186,6 +186,55 @@ If you go RF:
 no idea what carries them. Building wired now and bridging a battery panel over
 RF later requires no protocol change at all.
 
+#### Fit both footprints — but select with a jumper, not power
+
+Putting an **HC-12 footprint next to the RS-485 module footprint** on every board
+is the right call. It costs board area and nothing else, one PCB design then
+serves every node, and each install picks its medium at build time. Do it.
+
+Two things make it work, and the second is where this pattern usually goes wrong.
+
+**1. Both modules share the one USART.** The ATtiny3216/1616 have a single
+USART0, so "both populated and both live" is not automatic — they would both
+drive the MCU's RX line. The MCU's **TX** side is fine driving both modules' RX
+in parallel (one output, two inputs).
+
+**2. ⚠ A power switch alone does not isolate the unused module.** An unpowered
+CMOS output does not go high-Z — it clamps through its ESD diode into a dead VCC
+rail. The unpowered module will **drag the shared RX line toward ground and draw
+parasitic current through its own TX pin.** This is the standard failure of
+"just switch the power" and it looks like a mysteriously dead UART.
+
+**Do this instead:** a **3-pin jumper on the RX line** selecting which module's
+TX reaches the MCU. Zero parts, zero ambiguity, and it works whether or not the
+unused module has power.
+
+Keep the power switch as well, for a different reason: **HC-12 idle current is
+real** — roughly 16 mA in FU3, ~3.6 mA in FU1, ~80 µA in FU2. Cutting power to an
+unused radio is worth more than cutting power to an unused RS-485 module.
+
+**Budget for the HC-12's transmit burst.** It pulls ~100 mA at full power, which
+through a 12 V → 5 V linear regulator is a ~0.7 W transient. Fit **≥470 µF** of
+bulk capacitance at the module, and consider configuring lower TX power — across
+one hall you need nothing like 100 mW. The HC-12 also wants a `SET` pin for
+configuration; a panel budget of 9 (encoders) + 2 (UART) + 1 (SET) + 1 (status) +
+1 (UPDI) = **14 of 18** still leaves room.
+
+**If you want a node that is genuinely both — a bridge.** Merge the two modules'
+TX lines into MCU RX with a **74LVC1G08 AND gate** (~₹8) instead of the jumper.
+UART idles high and data pulls low, so ANDing two idle-high lines passes either
+stream through correctly. Simultaneous traffic on both media garbles a frame, but
+the CRC drops it and §6.1 recovers — and that case is rare. Two firmware rules
+are then mandatory:
+
+- **Discard any frame whose source ID is your own** (already required, since the
+  auto-flow module echoes your own transmissions back).
+- **Add a "forwarded" bit or a TTL** so a frame is relayed at most once.
+  Otherwise the bridge re-forwards its own echo and loops the bus forever.
+
+Fit the AND-gate footprint on every board and populate it only on the one node
+that needs to bridge. Wired panels and RF panels then coexist on one system.
+
 **Recommendation: wired.** At 2–6 nodes in one hall, with panels that want to be
 on walls where sockets generally are not, the cable does double duty as power and
 data and removes the battery from the system entirely. Revisit only if surveying
@@ -845,6 +894,10 @@ everywhere** is worth considering purely for BOM and toolchain simplicity.
 | Part | Where | ~Cost | Note |
 |---|---|---|---|
 | **RS-485 auto-flow module** (HW-0519 class) | every node | **~₹31** | MAX485 + TVS + jumper-selectable 120 Ω + auto-direction. Leave `R0` open. **Needs a 10 kΩ pull-up on TXD.** |
+| **HC-12 footprint** | every node, populated as needed | ~₹300 | 433 MHz UART-transparent alternative. Fit the footprint even if unused — see *Fit both footprints*. |
+| 3-pin jumper on RX | every node | — | selects which module drives the MCU's RX. **Not a power switch** — an unpowered module still loads the line. |
+| 74LVC1G08 AND gate | bridge node only | ~₹8 | merges both modules onto one RX so a node can carry wired and RF at once |
+| 470 µF bulk cap | HC-12 nodes | ~₹5 | rides out the ~100 mA transmit burst |
 | *or* **MAX3082** / **SN65HVD3082E** / **THVD1410** | every node | ~₹17–40 | bare IC, **slew-limited + true fail-safe** — lower EMI, no bias resistors, but no TVS and you own the DE timing. An optimisation, not a prerequisite. |
 | 120 Ω 1 % | **none** | — | termination is unnecessary at ≤115200 / ~100 m with slew-limited parts; if ever needed, fit it in a 6P4C *plug*, not on a board |
 | Bias resistors | **none** | — | eliminated by choosing a true-failsafe receiver; otherwise one network on the driver node only |
@@ -866,6 +919,7 @@ everywhere** is worth considering purely for BOM and toolchain simplicity.
 | **Free-running vs polled** | Free-running, per the collision numbers in §6.3. Polled stays an easy retrofit (~9.5 ms cycle at 6 nodes) if you want determinism during bring-up. |
 | **Isolation** | Only needed if panels sit on different mains circuits. Costs ~₹200/node. |
 | **Module or bare IC?** | Settled: HW-0519-class auto-flow module, ~₹31. TVS included, termination jumper-disabled, one fewer GPIO. Move to a bare slew-limited fail-safe IC only if EMI or a higher baud rate ever justifies it. |
+| **Wired or RF per node** | Deferred to build time by fitting both footprints. Decide per install; a bridge node lets the two coexist. |
 | **Zone count** | 16 is almost certainly plenty for one hall. |
 | **Does the driver keep IR?** | It is 1 pin and already written. Probably yes, as a per-node override. |
 | **Panel power** | **12 V down the pair → 5 V linear regulator on the panel.** Keeps the MAX485 module in spec and puts no switcher near the data pair. ~0.2 W in the regulator. |

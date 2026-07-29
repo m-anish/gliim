@@ -62,6 +62,7 @@ intact, plus the six hard-won findings worth carrying forward.
 | ATtiny1616 | control panel — 3× EC11, RS-485 |
 | 3× PT4115 | buck LED drivers, one per channel (up to ~5 LEDs each) |
 | RS-485 auto-flow module | MAX485 + TVS, auto-direction, one per node (~₹31) |
+| HC-12 (optional) | same footprint choice — 433 MHz drop-in where cable can't reach |
 | EC11 encoder | one per channel, with push switch |
 | USB-C PD trigger | 12–20 V for the LED rail; 12 V down the bus for panels |
 | 2-pair CAT5 + RJ11 (~₹7/m) | one cable carries the bus **and** panel power |
