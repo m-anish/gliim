@@ -339,8 +339,12 @@ future install ever does have a real earth, you can lift it.
 | **4** | **RS-485 A** |
 | **5** | **RS-485 B** |
 | **7** | **GND** |
-| **8** | **+12 V** |
+| **8** | **V_BUS** — 5 V *or* 12 V, see §3c |
 | 9, 10 (shell tabs) | GND |
+
+Name the net **`V_BUS`**, not `+5V`. Which voltage it carries is an install-time
+choice (§3c), and a net called `+5V` that sometimes holds 12 V is how boards get
+destroyed.
 
 The choice of pairs is deliberate. **Pins 4/5 (blue) and 7/8 (brown) are wired
 identically in T568A and T568B** — only 1/2 and 3/6 swap between the standards. So
@@ -386,6 +390,55 @@ in §*Use a generic RS-485 module* shows idle RXD chattering. 10 kΩ rather than
 textbook 680 Ω because we do not terminate: with no 120 Ω loads, 680 Ω would burn
 ~3.7 mA continuously and load the driver for no benefit, while 10 kΩ still holds
 roughly 0.45 V across the line.
+
+---
+
+## 3c. Panel supply — 5 V or 12 V down the cable?
+
+**5 V works for small installs and is simpler. 12 V is needed once the run gets
+long or the panel count grows.** Design the panel to take either.
+
+The binding constraint is the **MAX485's 4.75 V minimum** — not the MCU, which at
+10 MHz is happy down to 2.7 V, and not the WS2812B at ~3.5 V. Run the panel MCU
+at **10 MHz**, not 20; a panel has nothing to compute, and 20 MHz would need
+4.5 V and become a second constraint for no benefit.
+
+Voltage at the panel with 5 V distributed on 24 AWG:
+
+| Run | Panels | Current | Drop | At the panel | |
+|---|---|---|---|---|---|
+| 15 m | 1 | 30 mA | 0.05 V | **4.95 V** | fine |
+| 15 m | 2 | 60 mA | 0.09 V | **4.91 V** | fine |
+| 25 m | 3 | 90 mA | 0.23 V | **4.77 V** | at the limit |
+| 40 m | 4 | 120 mA | 0.49 V | **4.52 V** | **under spec** |
+| 40 m | 6 | 180 mA | 0.73 V | **4.27 V** | **under spec** |
+
+So:
+
+- **≤2 panels, ≤20 m → distribute 5 V.** No regulator on the panel at all. This
+  is the fewest parts, no heat, and nothing to go wrong.
+- **3+ panels or >25 m → distribute 12 V** and drop it with a linear regulator at
+  each panel (~0.2 W at 30 mA). This also decouples the panel's supply from the
+  main board's logic rail, which is worth something on a long cable carrying a
+  switching WS2812.
+
+**Fit both.** Put a small linear-regulator footprint on the panel plus a
+**bypass jumper** across it. Jumper fitted = 5 V straight through; regulator
+fitted = 12 V in, 5 V out. One board, decided at build time — the same approach
+the transport modules already use.
+
+### Drop the series Schottky
+
+Earlier drafts specified a series Schottky on the panel's supply as
+reverse-polarity insurance. **The RJ45 pin assignment makes it redundant**, and
+it costs 0.3 V — roughly six times the cable drop at 15 m, which is what pushed
+the earlier conclusion toward 12 V in the first place.
+
+With pins 1/2/3/6 unconnected, a reversed lead maps the panel's `V_BUS` (pin 8)
+onto the far end's pin 1, which is not connected to anything. **The panel simply
+does not power up.** That is exactly the failure mode the Schottky was there to
+guarantee, achieved with copper instead of a 0.3 V tax. (RJ45 patch leads are
+straight-through in practice anyway — reversal is a telephone-cord problem.)
 
 ---
 
@@ -468,7 +521,6 @@ it cuts the burst.
 | **330 Ω series + 100 nF** at each WS2812 | main pin 15, panel pin 13 | Damps the data edge and holds the LED's rail steady through colour changes. |
 | **1 kΩ series** on UPDI | both, pin 16 | Standard serialUPDI wiring. |
 | **100 nF + 10 µF** | both, pin 1 | Decoupling. |
-| **Series Schottky** on the panel's +12 V in | panel | A miswired cable then means "does not power up", not a dead board. |
 | **≥470 µF** at the HC-12 | RF builds | Rides out the ~100 mA transmit burst. |
 
 ---

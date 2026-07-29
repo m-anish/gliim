@@ -1035,11 +1035,10 @@ rather than a keyfob; it reuses everything and it has knobs.
 | *or* **MAX3082** / **SN65HVD3082E** / **THVD1410** | every node | ~₹17–40 | bare IC, **slew-limited + true fail-safe** — lower EMI, no bias resistors, but no TVS and you own the DE timing. An optimisation, not a prerequisite. |
 | 120 Ω 1 % | **none** | — | termination is unnecessary at ≤115200 / ~100 m with slew-limited parts; if ever needed, fit it in a 6P4C *plug*, not on a board |
 | Bias resistors | **none** | — | eliminated by choosing a true-failsafe receiver; otherwise one network on the driver node only |
-| Schottky diode (series) | per panel | ~₹2 | reverse-polarity protection: a miswired cable means "does not power up", not a dead board |
 | **EC11 encoder** + knob | per channel | ₹25 | 20 detents, with push |
 | 1 kΩ + 10 nF | per encoder line | — | RC debounce |
 | RJ45 jacks or 4-pin screw terminals | per node | — | CAT5 in / CAT5 out for daisy-chain |
-| 12 V → 5 V linear regulator | per panel | ~₹10 | ~0.2 W at 30 mA; no switcher beside the data pair |
+| 12 V → 5 V linear regulator | per panel, **12 V installs only** | ~₹10 | ~0.2 W at 30 mA. Bypass with a jumper when distributing 5 V. |
 | TVS + series resistors on A/B | per node | — | the bus leaves the enclosure |
 
 ---
@@ -1057,7 +1056,7 @@ rather than a keyfob; it reuses everything and it has knobs.
 | **ATtiny3226 price/stock** | Settled on the 3226 and the pin map in §8 is verified against `iotn3226.h`. The one open item is local price and availability versus the 3216. |
 | **Zone count** | 16 is almost certainly plenty for one hall. |
 | **Does the driver keep IR?** | Resolved in §9a: IR belongs on the **panels**, not the driver nodes — panels are at eye level and relay to every driver. |
-| **Panel power** | **12 V down the pair → 5 V linear regulator on the panel.** Keeps the MAX485 module in spec and puts no switcher near the data pair. ~0.2 W in the regulator. |
+| **Panel power** | Either, decided per install — see `hardware/pinout.md` §3c. **5 V straight through for ≤2 panels / ≤20 m** (no regulator at all); **12 V + a linear regulator** beyond that. The binding constraint is the MAX485's 4.75 V minimum; run the panel MCU at 10 MHz so it is never the limit. |
 
 ---
 
