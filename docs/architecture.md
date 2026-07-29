@@ -220,7 +220,47 @@ one hall you need nothing like 100 mW. The HC-12 also wants a `SET` pin for
 configuration; a panel budget of 9 (encoders) + 2 (UART) + 1 (SET) + 1 (status) +
 1 (UPDI) = **14 of 18** still leaves room.
 
-**If you want a node that is genuinely both — a bridge.** Merge the two modules'
+#### If you want both live at once: use a 2-series ATtiny, not a co-processor
+
+**Short answer to "is TWI0 master or slave": both.** The peripheral has separate
+master (`MCTRLA`) and slave (`SCTRLA`) register sets, so an ATtiny can be either
+— `Wire.begin()` for master, `Wire.begin(addr)` for slave in megaTinyCore. The
+1-series TWI also has a `DUALCTRL` register for running master and slave at once
+on split pins; verify in DS40002205A §22 before relying on that part.
+
+So the co-processor scheme *works*: a second ATtiny owns the radio's UART and
+presents it to the main MCU over I²C. It is a legitimate pattern. But there is a
+cheaper answer to the same problem.
+
+**The ATtiny3226 (2-series, 20-pin SOIC) has two USARTs.** Same package, similar
+price, and it also brings **3 KB SRAM** instead of 2 KB and a 1 MHz-capable TWI.
+One chip, one firmware, no I²C link, no AND gate, no second UPDI header — wired
+and wireless simply get a hardware UART each.
+
+Against the co-processor that is: ~₹50 of MCU saved, a whole second firmware not
+written, and no inter-chip protocol to debug at 3 a.m.
+
+**Verify before switching parts:**
+
+- **TCA0 still behaves the same.** The 2-series keeps TCA0 with normal (16-bit)
+  and split modes, so the WO0–WO2 constraint and the whole PWM engine carry over
+  unchanged. Confirm against the 2-series datasheet.
+- **The millis timer.** The 2-series drops TCD0 and has TCB0/TCB1 instead, so
+  megaTinyCore puts `millis()` on a TCB. That is fine — the thing that matters is
+  that **TCA0 stays free** for `takeOverTCA0()`, and it does.
+- **USART1's pins** on the 20-pin part — check Table 5-1 of the 2-series datasheet
+  against the §8 budget before committing the layout.
+- **Local availability and price.** The 3216 was chosen partly because it was
+  cheap and in stock; confirm the 3226 is too.
+
+**Keep the co-processor idea in reserve** for one case it genuinely wins: if you
+want the radio to be a **swappable daughterboard** — HC-12 today, LoRa or nRF24
+later — plugging into the existing Qwiic/I²C port with no main-board respin. That
+is a real product feature, not just a workaround. If you go that way, **add an
+attention/interrupt GPIO** from the radio board to the main MCU so it reads on
+demand rather than polling I²C constantly.
+
+**The cheap fallback, if you stay on the 3216.** Merge the two modules'
 TX lines into MCU RX with a **74LVC1G08 AND gate** (~₹8) instead of the jumper.
 UART idles high and data pulls low, so ANDing two idle-high lines passes either
 stream through correctly. Simultaneous traffic on both media garbles a frame, but
@@ -920,6 +960,7 @@ everywhere** is worth considering purely for BOM and toolchain simplicity.
 | **Isolation** | Only needed if panels sit on different mains circuits. Costs ~₹200/node. |
 | **Module or bare IC?** | Settled: HW-0519-class auto-flow module, ~₹31. TVS included, termination jumper-disabled, one fewer GPIO. Move to a bare slew-limited fail-safe IC only if EMI or a higher baud rate ever justifies it. |
 | **Wired or RF per node** | Deferred to build time by fitting both footprints. Decide per install; a bridge node lets the two coexist. |
+| **ATtiny3216 or 3226?** | The 2-series **3226** has two USARTs and 3 KB SRAM in the same 20-pin package — it makes wired+wireless-at-once trivial and costs nothing extra. Check local price and stock, and confirm USART1's pins fit §8. Leaning 3226. |
 | **Zone count** | 16 is almost certainly plenty for one hall. |
 | **Does the driver keep IR?** | It is 1 pin and already written. Probably yes, as a per-node override. |
 | **Panel power** | **12 V down the pair → 5 V linear regulator on the panel.** Keeps the MAX485 module in spec and puts no switcher near the data pair. ~0.2 W in the regulator. |
