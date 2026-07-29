@@ -295,6 +295,100 @@ Two things to leave configurable rather than hard-code:
 
 ---
 
+## 3b. Wiring the RS-485 module and the RJ45 jacks
+
+### Module (HW-0519 class)
+
+| Module pin | Goes to | Notes |
+|---|---|---|
+| **VCC** | **+5 V** | 100 nF at the module |
+| **GND** | **GND** | |
+| **TXD** | **MCU RXD** — main pin 8 / PB3 | module output |
+| **RXD** | **MCU TXD** — main pin 9 / PB2 | module input. **10 kΩ pull-up** here |
+| **A+** | RJ45 **pin 4** on both jacks | |
+| **B−** | RJ45 **pin 5** on both jacks | |
+| **RGND** | see below | |
+
+⚠ **Check the silkscreen before committing the footprint.** The header order on
+these boards is commonly `GND · RXD · TXD · VCC`, which is the reverse of how the
+symbol is usually drawn. Symbols get redrawn from memory; the silkscreen does not.
+
+Also: leave the module's **`R0` jumper open**. That is its 120 Ω terminator, and
+per §*Plug-and-play* we want none anywhere.
+
+### `RGND` — tie it to GND through a jumper
+
+`RGND` is the module's surge-return pad (the *"connect to earth"* terminal). The
+vendor says it may be left unconnected for short indoor runs, and that is true as
+far as it goes — but **the on-board TVS diodes return to `RGND`.** Float it and
+they can still clamp A-against-B, while common-mode surges — the ones a 15 m cable
+across a hall actually picks up — have nowhere to go.
+
+There is no earth in this system: everything runs from a USB-C PD supply, and the
+cable already carries a shared GND on pin 7. So tying `RGND` to board GND creates
+no new loop and gives the TVS a defined return.
+
+**Fit a 0 Ω / solder jumper between `RGND` and GND, populated by default.** If a
+future install ever does have a real earth, you can lift it.
+
+### RJ45 — use pins 4/5 and 7/8, leave the rest unconnected
+
+| RJ45 pin | Signal |
+|---:|---|
+| 1, 2, 3, 6 | **no connect** |
+| **4** | **RS-485 A** |
+| **5** | **RS-485 B** |
+| **7** | **GND** |
+| **8** | **+12 V** |
+| 9, 10 (shell tabs) | GND |
+
+The choice of pairs is deliberate. **Pins 4/5 (blue) and 7/8 (brown) are wired
+identically in T568A and T568B** — only 1/2 and 3/6 swap between the standards. So
+a mixed-standard or crossover lead cannot swap the data pair or reverse the power
+pair. Every RJ45 patch lead in the world just works.
+
+Leaving 1/2/3/6 unconnected is what makes that guarantee complete: those are
+exactly the pins a crossover cable rearranges, so if nothing is on them, nothing
+can go wrong. It also means a **reversed** lead (pin 1↔8) would land +12 V on an
+unconnected pin — the panel simply fails to power up, rather than dying.
+
+Tie the **shell tabs (9, 10) to GND**. With UTP there is no shield conductor in
+the cable, so this does nothing electrically — but it gives an ESD hit on the
+connector a path to ground instead of an arc to the signal pins.
+
+### Two jacks, wired in parallel
+
+Both jacks are the same jack — there is no "in" and no "out" (see
+`docs/architecture.md` §5). Wire them straight across:
+
+```
+   J1.4 ──┬── J2.4 ── module A+
+   J1.5 ──┼── J2.5 ── module B−
+   J1.7 ──┼── J2.7 ── GND
+   J1.8 ──┴── J2.8 ── +12 V
+```
+
+Silkscreen both **BUS**, not IN/OUT. The pass-through is passive copper, so a
+node losing power does not break the chain.
+
+### Bias resistors — footprints only
+
+The module carries a plain MAX485 with no true fail-safe receiver, so an idle
+bus may leave the receiver undefined. Provide **unpopulated** footprints on the
+main board only:
+
+```
+   +5V ── 10k ── A          B ── 10k ── GND
+```
+
+Populate on **exactly one node on the whole bus**, and only if the arrival check
+in §*Use a generic RS-485 module* shows idle RXD chattering. 10 kΩ rather than the
+textbook 680 Ω because we do not terminate: with no 120 Ω loads, 680 Ω would burn
+~3.7 mA continuously and load the driver for no benefit, while 10 kΩ still holds
+roughly 0.45 V across the line.
+
+---
+
 ## 3a. Wiring the HC-12
 
 ```
