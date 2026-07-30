@@ -109,6 +109,9 @@ gliim/
 │   └── find-port.sh        locate the USB-serial programmer
 ├── hardware/
 │   ├── pinout.md           ← numbered pinouts, both boards, layout-ready
+│   ├── bom-mainboard.md    ← orderable BOM + cost for gliim-3
+│   ├── panel-wired.md      the wired control panel
+│   ├── panel-wireless.md   the battery + 433 MHz panel
 │   ├── board.md            the driver node: MCU, power, subsystems
 │   ├── led-driver.md       the LED channel: PT4115, boost options, CV strips
 │   └── input.md            input circuits (partly superseded by the bus)
