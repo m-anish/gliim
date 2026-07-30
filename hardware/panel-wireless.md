@@ -68,6 +68,32 @@ is awake and listening. Budget ~10 s awake after the last touch. A wired panel
 displays continuously; a wireless one displays on demand. Say so in the firmware
 comments so nobody later "fixes" it.
 
+### WS2812 brightness and current — what actually matters
+
+**The status LED is always driven dim, and never near white.** Colour is used to
+mean something (link state, battery state), never to be bright. Treat full-white
+as a bug.
+
+⚠ But be clear about *why*, because the obvious reason is wrong: **the LED
+current does not come from the GPIO.** The MCU pin drives only the `DIN` data
+line, which is a CMOS input drawing microamps regardless of how bright the LED
+is. All the LED current comes from the WS2812's own VDD pin, straight off the
+rail. So the 20 mA per-pin limit has nothing to do with WS2812 brightness and
+cannot be exceeded by it.
+
+Keeping it dim buys two real things instead:
+
+- **Supply current.** One WS2812 at full white is ~60 mA. On the battery panel
+  that is the difference between weeks and days.
+- **It is a status light in a dark room.** At full brightness it stops being an
+  indicator and becomes a nuisance.
+
+**Where GPIO current genuinely does matter on these boards** is the channel
+indicator LEDs, which hang directly off MCU pins through 470 Ω: about 6.4 mA
+each at 5 V, ~19 mA for three. That is inside the per-pin limit but is a real
+share of the total I/O budget — and it is the number to watch if the indicators
+are ever changed to something brighter.
+
 ## 4. Charging and the switch
 
 - **TP4056 module with protection** — the DW01 + dual-MOSFET variant, not the
