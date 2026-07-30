@@ -1,0 +1,350 @@
+/* ==========================================================================
+   gliim — spoke stylesheet
+   Loads after kit/tokens.css + kit/base.css, so token overrides and bespoke
+   rules win. The kit owns .sl-wrap, .sl-kicker, .sl-link, .sl-family,
+   .sl-footer; everything below is gliim's own layer.
+   ========================================================================== */
+
+:root {
+  /* ── Token overrides: dusk violet, unused elsewhere in the family ── */
+  --sl-bg:        #0c0b10;
+  --sl-surface:   #141320;
+  --sl-border:    #201e2c;
+  --sl-text:      #e9e6ee;
+  --sl-text-dim:  #8b8798;
+  --sl-text-mute: #5c586a;
+  --sl-accent:    #9b8ec4;
+  --sl-accent-2:  #e0a76b;
+
+  --sl-font-display: 'Newsreader', Georgia, 'Times New Roman', serif;
+  --sl-font-body:    'Karla', system-ui, -apple-system, sans-serif;
+  --sl-font-mono:    'IBM Plex Mono', ui-monospace, Menlo, monospace;
+
+  --sl-maxw: 1080px;
+
+  /* Driven by the hero knob. 0 = off, 1 = full. */
+  --lit: 0.28;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--sl-bg);
+  color: var(--sl-text);
+  font-family: var(--sl-font-body);
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+
+.narrow { max-width: 720px; }
+
+/* ── Top bar ─────────────────────────────────────────────────────────── */
+.topbar {
+  position: sticky; top: 0; z-index: 20;
+  background: color-mix(in srgb, var(--sl-bg) 88%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--sl-border);
+}
+.topbar-inner {
+  max-width: var(--sl-maxw); margin: 0 auto;
+  padding: 0.85rem 1.5rem;
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+}
+.brand {
+  display: inline-flex; align-items: center; gap: 0.6rem;
+  font-family: var(--sl-font-display);
+  font-size: 1.25rem; letter-spacing: 0.01em;
+  color: var(--sl-text); text-decoration: none;
+}
+.brand-mark {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--sl-accent);
+  box-shadow: 0 0 calc(4px + 14px * var(--lit)) color-mix(in srgb, var(--sl-accent) 80%, transparent);
+  transition: box-shadow 120ms linear;
+}
+.status {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  font-family: var(--sl-font-mono); font-size: 0.72rem;
+  color: var(--sl-text-mute); letter-spacing: 0.04em;
+}
+.status .dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--sl-accent-2); opacity: 0.85;
+  animation: breathe 5s ease-in-out infinite;
+}
+@keyframes breathe { 0%,100% { opacity: 0.25; } 50% { opacity: 0.9; } }
+
+/* ── Hero ────────────────────────────────────────────────────────────── */
+.hero { position: relative; overflow: hidden; padding: clamp(3.5rem, 10vw, 7rem) 0 clamp(3rem, 8vw, 6rem); }
+.glow {
+  position: absolute; inset: -40% 0 auto 0; height: 120%;
+  background: radial-gradient(
+    ellipse 55% 45% at 72% 30%,
+    color-mix(in srgb, var(--sl-accent-2) calc(38% * var(--lit)), transparent) 0%,
+    transparent 62%);
+  pointer-events: none;
+  transition: background 140ms linear;
+}
+.hero-inner {
+  position: relative;
+  display: grid; grid-template-columns: 1.35fr 1fr;
+  gap: clamp(2rem, 6vw, 4rem); align-items: center;
+}
+.hero h1 {
+  font-family: var(--sl-font-display); font-weight: 400;
+  font-size: clamp(3.5rem, 12vw, 6.5rem);
+  line-height: 0.95; margin: 0.4rem 0 0.6rem;
+  letter-spacing: -0.02em;
+}
+.tagline {
+  font-family: var(--sl-font-display); font-style: italic;
+  font-size: clamp(1.25rem, 3.2vw, 1.7rem);
+  color: var(--sl-accent); margin: 0 0 1.4rem; line-height: 1.3;
+}
+.lede { color: var(--sl-text-dim); font-size: 1.05rem; max-width: 34ch; margin: 0; }
+
+/* ── The knob ────────────────────────────────────────────────────────── */
+.hero-knob { display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+.knob {
+  --angle: 33deg;
+  width: min(200px, 46vw); aspect-ratio: 1; border-radius: 50%;
+  position: relative; cursor: grab; touch-action: none;
+  background: radial-gradient(circle at 50% 42%, #24222f 0%, #16141f 62%, #100e18 100%);
+  border: 1px solid var(--sl-border);
+  box-shadow:
+    0 0 calc(10px + 60px * var(--lit)) color-mix(in srgb, var(--sl-accent-2) calc(55% * var(--lit)), transparent),
+    inset 0 1px 0 rgba(255,255,255,0.05);
+  transition: box-shadow 140ms linear;
+  display: grid; place-items: center;
+}
+.knob:active { cursor: grabbing; }
+.knob:focus-visible { outline: 2px solid var(--sl-accent); outline-offset: 6px; }
+.knob-face {
+  width: 74%; height: 74%; border-radius: 50%;
+  background: linear-gradient(160deg, #2b2839, #17151f);
+  border: 1px solid rgba(255,255,255,0.06);
+  transform: rotate(var(--angle));
+  transition: transform 90ms ease-out;
+  display: grid; justify-items: center;
+}
+.knob-notch {
+  width: 3px; height: 22%; margin-top: 9%;
+  border-radius: 2px; background: var(--sl-accent);
+  box-shadow: 0 0 calc(2px + 10px * var(--lit)) var(--sl-accent);
+}
+.knob-caption { font-family: var(--sl-font-mono); font-size: 1.5rem; color: var(--sl-text); margin: 0; text-align: center; }
+.knob-pct { color: var(--sl-accent-2); }
+.knob-hint { display: block; font-size: 0.68rem; letter-spacing: 0.05em; color: var(--sl-text-mute); margin-top: 0.35rem; }
+
+/* ── Text sections ───────────────────────────────────────────────────── */
+.text { padding: clamp(3rem, 8vw, 5.5rem) 0; }
+.text.alt { background: var(--sl-surface); border-block: 1px solid var(--sl-border); }
+.text h2 {
+  font-family: var(--sl-font-display); font-weight: 400;
+  font-size: clamp(1.7rem, 4.2vw, 2.5rem);
+  line-height: 1.2; margin: 0.5rem 0 1.4rem; letter-spacing: -0.01em;
+}
+.text p { color: var(--sl-text-dim); max-width: 62ch; margin: 0 0 1.1rem; }
+.aside {
+  border-left: 2px solid var(--sl-accent);
+  padding-left: 1.1rem; color: var(--sl-text-mute) !important; font-size: 0.95rem;
+}
+.two-col {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 0 2.5rem; margin-top: 2rem;
+}
+
+/* ── The turn — quiet, not flashy ────────────────────────────────────── */
+.turn {
+  padding: clamp(5rem, 16vw, 10rem) 0; text-align: center;
+  border-block: 1px solid var(--sl-border);
+  background: radial-gradient(ellipse 55% 130% at 50% 50%,
+    color-mix(in srgb, var(--sl-accent) 11%, transparent), transparent 72%);
+}
+.turn-line {
+  font-family: var(--sl-font-display); font-style: italic;
+  font-size: clamp(1.6rem, 5.5vw, 3rem);
+  line-height: 1.25; color: var(--sl-text); margin: 0 auto; max-width: 18ch;
+  letter-spacing: -0.01em;
+}
+
+/* ==========================================================================
+   INFOGRAPHICS
+   Animations only run while .run is present (added by IntersectionObserver).
+   ========================================================================== */
+.figure { margin: 2.5rem 0 0; }
+.figure.wide { margin-inline: calc(-1 * clamp(0px, 2vw, 24px)); }
+.ig { width: 100%; height: auto; display: block; overflow: visible; }
+.figure figcaption {
+  font-family: var(--sl-font-mono); font-size: 0.72rem; line-height: 1.6;
+  color: var(--sl-text-mute); margin-top: 1rem; max-width: 60ch;
+}
+
+/* shared primitives */
+.ig-knob, .ig-pknob { fill: #1b1926; stroke: var(--sl-accent); stroke-width: 1.5; }
+.ig-pknob.sm { stroke-opacity: 0.45; }
+.ig-notch { stroke: var(--sl-accent); stroke-width: 2.5; stroke-linecap: round; }
+.ig-drop  { stroke: var(--sl-border); stroke-width: 1.5; stroke-dasharray: 3 5; }
+.ig-pool  { fill: var(--sl-accent-2); opacity: 0.16; }
+.ig-label {
+  font-family: var(--sl-font-mono); font-size: 13px; fill: var(--sl-text-dim);
+  text-anchor: middle; letter-spacing: 0.06em;
+}
+
+/* ── Infographic 1: one knob, one light ──────────────────────────────── */
+.ig-pairs .ig-knob { filter: drop-shadow(0 0 0 transparent); }
+.ig-pairs.run .pair .ig-pool {
+  animation: poolBreathe 9s ease-in-out infinite;
+  animation-delay: calc(var(--i) * 1.1s);
+}
+.ig-pairs.run .pair .ig-notch {
+  transform-box: fill-box; transform-origin: 50% 100%;
+  animation: notchTurn 9s ease-in-out infinite;
+  animation-delay: calc(var(--i) * 1.1s);
+}
+@keyframes poolBreathe {
+  0%, 100% { opacity: 0.10; }
+  45%      { opacity: 0.42; }
+}
+@keyframes notchTurn {
+  0%, 100% { transform: rotate(-38deg); }
+  45%      { transform: rotate(42deg); }
+}
+
+/* ── Infographic 2: the hall ─────────────────────────────────────────── */
+.ig-room  { fill: none; stroke: var(--sl-border); stroke-width: 1.5; opacity: 0.8; }
+.ig-floor { stroke: var(--sl-text-mute); stroke-width: 1.5; opacity: 0.5; }
+.ig-ceilrun { stroke: var(--sl-border); stroke-width: 2; }
+.ig-dot { fill: var(--sl-accent-2); opacity: 0.35; }
+.ig-stem  { stroke: var(--sl-text-mute); stroke-width: 1.5; opacity: 0.6; }
+.ig-shade { fill: #221f2e; stroke: var(--sl-text-mute); stroke-width: 1.2; stroke-opacity: 0.6; }
+.ig-cone  { fill: var(--sl-accent-2); opacity: 0.09; }
+.ig-panel { fill: #1b1926; stroke: var(--sl-text-mute); stroke-width: 1.5; }
+.ig-cable { fill: none; stroke: var(--sl-text-mute); stroke-width: 2; opacity: 0.45; }
+.ig-cable-flow {
+  fill: none; stroke: var(--sl-accent); stroke-width: 2.5;
+  stroke-dasharray: 12 24; stroke-linecap: round; opacity: 0;
+}
+.ig-waves path { fill: none; stroke: var(--sl-accent); stroke-width: 2; stroke-linecap: round; opacity: 0; }
+
+/* the 15s story: near panel → far panel → the one with no cable */
+.ig-hall.run .ig-cable-flow { animation: flow 1.6s linear infinite, cableOn 15s linear infinite; }
+.ig-hall.run .fx .ig-cone,
+.ig-hall.run .fx .ig-pool   { animation: hallLevels 15s ease-in-out infinite; }
+.ig-hall.run .fx .ig-pool   { animation-name: hallLevelsPool; }
+.ig-hall.run .panel .ig-pknob { animation: panelWake 15s ease-in-out infinite; animation-delay: calc(var(--i) * 5s); }
+.ig-hall.run .panel .ig-panel { animation: panelLift 15s ease-in-out infinite; animation-delay: calc(var(--i) * 5s); }
+.ig-hall.run .panel .ig-dot { animation: dotWake 15s ease-in-out infinite; animation-delay: calc(var(--i) * 5s); }
+.ig-hall.run .ig-waves .w1 { animation: wave 15s ease-out infinite; animation-delay: 10.0s; }
+.ig-hall.run .ig-waves .w2 { animation: wave 15s ease-out infinite; animation-delay: 10.2s; }
+.ig-hall.run .ig-waves .w3 { animation: wave 15s ease-out infinite; animation-delay: 10.4s; }
+
+@keyframes flow      { to { stroke-dashoffset: -36; } }
+@keyframes cableOn   { 0% { opacity: 0.75; } 62% { opacity: 0.75; } 68% { opacity: 0; } 100% { opacity: 0; } }
+@keyframes panelWake {
+  0%   { stroke: var(--sl-accent); stroke-opacity: 1; }
+  22%  { stroke: var(--sl-accent-2); stroke-opacity: 1; }
+  33%  { stroke: var(--sl-accent); stroke-opacity: 0.35; }
+  100% { stroke: var(--sl-accent); stroke-opacity: 0.35; }
+}
+@keyframes panelLift {
+  0%, 24% { stroke: var(--sl-accent-2); stroke-opacity: 0.7; }
+  33%, 100% { stroke: var(--sl-border); stroke-opacity: 1; }
+}
+@keyframes hallLevels {
+  0%, 26%   { opacity: 0.05; }
+  33%, 60%  { opacity: 0.13; }
+  68%, 94%  { opacity: 0.09; }
+  100%      { opacity: 0.05; }
+}
+@keyframes hallLevelsPool {
+  0%, 26%   { opacity: 0.14; }
+  33%, 60%  { opacity: 0.50; }
+  68%, 94%  { opacity: 0.30; }
+  100%      { opacity: 0.14; }
+}
+@keyframes dotWake {
+  0%, 24% { opacity: 1; }
+  33%, 100% { opacity: 0.3; }
+}
+@keyframes wave {
+  0%, 64%   { opacity: 0; transform: translateX(-4px); }
+  70%       { opacity: 0.85; transform: translateX(0); }
+  82%       { opacity: 0; transform: translateX(6px); }
+  100%      { opacity: 0; }
+}
+
+/* ── Full-bleed scene ────────────────────────────────────────────────── */
+.scene { margin: 0; position: relative; }
+.scene img {
+  width: 100%; height: clamp(280px, 52vh, 560px);
+  object-fit: cover; display: block;
+  border-block: 1px solid var(--sl-border);
+}
+.scene figcaption {
+  font-family: var(--sl-font-mono); font-size: 0.72rem; line-height: 1.6;
+  color: var(--sl-text-mute); padding-top: 0.9rem; max-width: 60ch;
+}
+
+/* ── Copy beside a shot ──────────────────────────────────────────────── */
+.split {
+  display: grid; grid-template-columns: 1.1fr 0.9fr;
+  gap: clamp(1.5rem, 4vw, 3rem); align-items: start; margin-top: 2rem;
+}
+.split-copy p:last-child { margin-bottom: 0; }
+.shot { margin: 0; }
+.shot img {
+  width: 100%; height: auto; display: block; border-radius: 10px;
+  border: 1px solid var(--sl-border);
+}
+.shot figcaption {
+  font-family: var(--sl-font-mono); font-size: 0.72rem; line-height: 1.6;
+  color: var(--sl-text-mute); margin-top: 0.8rem;
+}
+.wide-shot { margin: 2.5rem 0 0; }
+.wide-shot img { max-height: 420px; object-fit: cover; }
+
+/* ── Board shots ─────────────────────────────────────────────────────── */
+.board-shots {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem; margin: 2rem 0;
+}
+.board-shots figure { margin: 0; }
+.board-shots img {
+  width: 100%; height: auto; display: block; border-radius: 10px;
+  border: 1px solid var(--sl-border); background: #07070a;
+}
+.board-shots figcaption {
+  font-family: var(--sl-font-mono); font-size: 0.72rem;
+  color: var(--sl-text-mute); margin-top: 0.7rem; line-height: 1.5;
+}
+
+/* ── Specs ───────────────────────────────────────────────────────────── */
+.specs { list-style: none; padding: 0; margin: 2rem 0 0; max-width: 68ch; }
+.specs li {
+  display: grid; grid-template-columns: 10rem 1fr; gap: 1rem;
+  padding: 0.75rem 0; border-top: 1px solid var(--sl-border);
+  color: var(--sl-text-dim); font-size: 0.95rem;
+}
+.specs li:last-child { border-bottom: 1px solid var(--sl-border); }
+.specs span {
+  font-family: var(--sl-font-mono); font-size: 0.72rem;
+  letter-spacing: 0.07em; text-transform: uppercase;
+  color: var(--sl-text-mute); padding-top: 0.2rem;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────── */
+@media (max-width: 780px) {
+  .hero-inner { grid-template-columns: 1fr; }
+  .split { grid-template-columns: 1fr; }
+  .hero-knob { align-items: flex-start; }
+  .specs li { grid-template-columns: 1fr; gap: 0.2rem; }
+  .two-col { gap: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, .ig.run * { animation: none !important; transition-duration: 0.01ms !important; }
+  .ig-cable-flow { opacity: 0.5; }
+  .ig-waves path { opacity: 0.5; }
+}

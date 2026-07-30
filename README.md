@@ -1,23 +1,24 @@
-# glim
+# gliim
 
-![status](https://img.shields.io/badge/status-rev2%20planning-orange)
+![status](https://img.shields.io/badge/status-trying-9b8ec4)
 ![mcu](https://img.shields.io/badge/MCU-ATtiny3226-323330)
 ![driver](https://img.shields.io/badge/LED%20driver-PT4115-fbb034)
 ![bus](https://img.shields.io/badge/bus-RS--485-6e5494)
 ![core](https://img.shields.io/badge/core-megaTinyCore-00979d)
 ![license](https://img.shields.io/badge/license-MIT-blue)
 
-> A *glim* is an old word for a small light — a candle, a lantern, the thing you
-> carry into a dark room.
+> *The dim-witted gnome that tries.*
 
-Dimmable light you control by **turning a knob**. One EC11 rotary encoder per
-channel, PT4115 constant-current drivers, and an ATtiny3216 doing 16-bit PWM.
-Built to put good, easily-adjustable lighting in a friend's house — no app, no
-pairing, no wall of identical switches. Grab the knob for the light you want and
-turn it.
+**Unit 000 · Trying** — [gliim.starstucklab.com](https://gliim.starstucklab.com)
 
-Control panels talk to driver nodes over **RS-485 on CAT5**, so a panel can sit
-15 m from the lights it runs and a hall can have as many of each as it needs.
+Lighting for large indoor spaces, controlled by a knob. One EC11 rotary encoder
+per channel, PT4115 constant-current drivers, and an ATtiny3226 doing 16-bit PWM.
+Halls, workshops and dining rooms outgrow the switch by the door — so gliim puts
+a panel at every door instead, each with the same three knobs and nothing to
+learn.
+
+Panels reach the driver nodes over **RS-485 on two-pair telephone cable** (~₹7/m,
+15 m runs), or over **433 MHz** where cable cannot go. The same knobs either way.
 
 The unshowy little sibling of [lokki](https://github.com/m-anish/lokki), which
 does the same job at campus scale. Part of the
@@ -98,7 +99,7 @@ override, `--slow` if an upload is flaky.
 ## Layout
 
 ```
-glim/
+gliim/
 ├── docs/architecture.md   ← the system: topology, RS-485, protocol, pin budgets
 ├── src/main.cpp           firmware (pre-pivot; rewrite pending)
 ├── include/config.h       pins + every tunable in one place
@@ -118,3 +119,11 @@ glim/
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+---
+
+Part of [starstucklab](https://github.com/m-anish/starstucklab) — building small
+machines for an indifferent universe. Siblings:
+[lokki](https://github.com/m-anish/lokki) ·
+[jigawatt](https://github.com/m-anish/jigawatt) ·
+[forsyth](https://github.com/m-anish/forsyth)

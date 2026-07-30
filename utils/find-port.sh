@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# glim — find the USB-serial adapter being used as the serialUPDI programmer.
+# gliim — find the USB-serial adapter being used as the serialUPDI programmer.
 #
 #   utils/find-port.sh           print the one detected port, or fail loudly
 #   utils/find-port.sh --list    show every candidate and what it looks like

@@ -1,6 +1,6 @@
 # Hardware
 
-glim is an ATtiny814 driving three PT4115 LED drivers, taking its input from a
+gliim is an ATtiny814 driving three PT4115 LED drivers, taking its input from a
 cheap analog thumb joystick. This document covers the pin map (and *why* it's
 that map), the power tree, and how to program the chip.
 
@@ -50,7 +50,7 @@ its 8-bit resolution costs real dimming depth (next section). So the LEDs live o
 **PB0/PB1/PB2** and TCA0 runs in normal mode.
 
 **Consequence:** PB2 is also USART0's TXD, and its only PORTMUX alternate (PA1)
-is the joystick. So the hardware UART is gone; `GLIM_DEBUG` builds bit-bang over
+is the joystick. So the hardware UART is gone; `GLIIM_DEBUG` builds bit-bang over
 SoftwareSerial on **PA4** instead, and IR is auto-disabled in those builds
 (SoftwareSerial's interrupt dispatcher claims the PORT vectors the IR decoder
 needs). This is a genuine 14-pin squeeze — rev2's ATtiny3216 has PORTC spare.
@@ -99,7 +99,7 @@ mode the smallest step is 1/256 = 0.39 %, which at 305 Hz is **6.4× coarser tha
 the driver can actually resolve** — the silicon was never the limit at these
 frequencies, resolution was. Going to 16-bit recovers all of it.
 
-`GLIM_VARIABLE_PWM_FREQ` still schedules the prescaler by brightness, but the
+`GLIIM_VARIABLE_PWM_FREQ` still schedules the prescaler by brightness, but the
 tiers now only step *downward* from 305 Hz (there is nothing above it): 305 Hz
 for bright and mid, dropping to 152 Hz when everything is dim, where flicker is
 least visible and the floor halves. Set `PWM_CLKSEL_LO` to DIV4 for the last 2×
@@ -126,7 +126,7 @@ sense resistor; no amount of PWM gets there.
 
 The PT4115 is a hysteretic step-down constant-current driver; it runs straight
 off the high-voltage rail and sets LED current with its sense resistor. Its
-PWM/DIM pin is what glim toggles — **high = LED on**, low = off — so the duty
+PWM/DIM pin is what gliim toggles — **high = LED on**, low = off — so the duty
 cycle the ATtiny writes *is* the brightness. Each channel can carry a string of
 LEDs (roughly up to ~5, depending on the string's forward voltage vs. your
 supply). Size the supply for the total LED current across all three channels

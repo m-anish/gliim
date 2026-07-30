@@ -1,4 +1,4 @@
-# glim — system architecture
+# gliim — system architecture
 
 **Status: planning.** This document is the design under discussion, not something
 built. Nothing here is implemented in firmware yet.
@@ -7,7 +7,7 @@ built. Nothing here is implemented in firmware yet.
 
 ## 1. The pivot
 
-glim was a box with a joystick. It is now a small **distributed lighting control
+gliim was a box with a joystick. It is now a small **distributed lighting control
 network**: driver nodes near the lights, control panels on the walls, one bus
 between them.
 
@@ -130,7 +130,7 @@ the run is short and slow enough that cheap untwisted cable also works — see
 | **I²C / Qwiic over distance** | Designed for on-board, < 1 m. Single-ended, no noise margin, and it hangs the whole bus when a node glitches. Even with P82B715 extenders this is the wrong tool. |
 | **CAN** | Genuinely more robust — arbitration and error handling in hardware. But the ATtiny has no CAN controller, so it means an MCP2515 + transceiver per node over SPI. Real cost and complexity for a benefit a lighting panel doesn't need. |
 | **Wireless (nRF24 / HC-12 / ESP-NOW)** | Wins only if panels are **battery**-powered; otherwise you are running a wire anyway and two more conductors are free. Full comparison in *Wireless — when it actually wins* below. |
-| **DMX512** | Is RS-485 at 250 kbaud with a lighting protocol on top — but unidirectional controller → fixture, and our panels are *inputs*. Worth knowing about if glim ever needs to sit in a stage-lighting rig. |
+| **DMX512** | Is RS-485 at 250 kbaud with a lighting protocol on top — but unidirectional controller → fixture, and our panels are *inputs*. Worth knowing about if gliim ever needs to sit in a stage-lighting rig. |
 | **DALI** | The actual industry standard for this exact job: 2-wire, polarity-insensitive, 1200 baud, designed for building lighting. Needs specific transceivers and a real stack. Right answer for a commercial product, over-heavy for this one. |
 
 ### Wireless — when it actually wins
@@ -1024,7 +1024,7 @@ matters if you use a resistor ladder for the panel switches.
 
 ## 9a. The remote: IR or RF?
 
-The pivot shrank this question. When glim was one box with one joystick, a remote
+The pivot shrank this question. When gliim was one box with one joystick, a remote
 was the only way to reach it from across the room. **Now there are knobs on
 walls.** What is actually left for a remote is: operating from a seat, a master-off
 by the door, and guests.

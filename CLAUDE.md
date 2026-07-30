@@ -4,7 +4,7 @@ Guidance for Claude Code (claude.ai/code) when working in this repository.
 
 ## Project
 
-glim is a knob-controlled LED dimmer, being reshaped into a small distributed
+gliim is a knob-controlled LED dimmer, being reshaped into a small distributed
 lighting network. An **ATtiny3216** drives three **PT4115** constant-current LED
 drivers via hardware PWM. Purpose: simple, screenless, easily-adjustable home and
 hall lighting. It's the small sibling of `lokki` (campus-scale LED automation) in
@@ -25,7 +25,7 @@ transport comparison, the counter-based protocol, and pin budgets.
 build and run; they are not the design. Don't extend the joystick UI.
 
 **rev1 (ATtiny814) is retired**, in `deprecated/`. Don't add rev1 support back,
-don't reintroduce a `GLIM_BOARD` switch. `deprecated/README.md` lists six
+don't reintroduce a `GLIIM_BOARD` switch. `deprecated/README.md` lists six
 findings that survive the pivot — read them before re-deriving any of it.
 
 ## The pin map is load-bearing — do not "simplify" it
@@ -92,12 +92,12 @@ programmer (`utils/find-port.sh`) so no port is hardcoded in `platformio.ini`.
 utils/flash.sh                    # build + upload
 utils/flash.sh --build            # compile only
 utils/flash.sh --fuses            # once per fresh chip
-utils/flash.sh --debug --monitor  # GLIM_DEBUG=1 build, upload, then console
+utils/flash.sh --debug --monitor  # GLIIM_DEBUG=1 build, upload, then console
 utils/flash.sh --port /dev/... --slow   # override port / drop to 115200
 ```
 
-Envs are `glim` (default) and `fuses`. `--debug` works by passing
-`-DGLIM_DEBUG=1`, which is why `GLIM_DEBUG` in `config.h` is wrapped in `#ifndef`
+Envs are `gliim` (default) and `fuses`. `--debug` works by passing
+`-DGLIIM_DEBUG=1`, which is why `GLIIM_DEBUG` in `config.h` is wrapped in `#ifndef`
 — keep that guard if you add build-time toggles. `--monitor` needs the adapter's
 RX on the debug TX pin (**PB2**), not the UPDI node — and note PB2 becomes the
 RS-485 TXD under the new architecture, so debug telemetry will have to share the
@@ -119,5 +119,5 @@ and one 15 m link** before designing anything else. That step de-risks the rest.
 
 ATtiny3216 = 32 KB flash, 2 KB SRAM — roomy compared to rev1's 8 KB, but keep it
 lean anyway: avoid large lookup tables in RAM (the brightness curve is computed,
-not tabled, on purpose), and keep `Serial` behind `GLIM_DEBUG`. Current build is
+not tabled, on purpose), and keep `Serial` behind `GLIIM_DEBUG`. Current build is
 5986 B / 32768 (18.3 %).

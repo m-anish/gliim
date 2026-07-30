@@ -5,7 +5,7 @@
 > [`../hardware/board.md`](../hardware/board.md).
 
 
-A living parts list for glim. It covers the **core dimmer** (current rev1,
+A living parts list for gliim. It covers the **core dimmer** (current rev1,
 hand-soldered) plus the two add-ons worth baking in now — **channel indicator
 LEDs** and the **IR remote**. Prices are rough per-unit ballparks (AliExpress /
 Indian hobby suppliers) to gauge scale, not quotes.

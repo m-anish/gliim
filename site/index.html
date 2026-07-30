@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>gliim — the dim-witted gnome that tries</title>
+  <meta name="description" content="Lighting for large indoor spaces, controlled by a knob. One knob per light, a panel at every door — some on a thin cable, some on none at all. A starstucklab project." />
+  <meta property="og:title" content="gliim" />
+  <meta property="og:description" content="The dim-witted gnome that tries. Lighting for large indoor spaces, controlled by a plain knob — with a panel at every door. A starstucklab project." />
+  <meta property="og:image" content="https://gliim.starstucklab.com/assets/hero.jpg" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://gliim.starstucklab.com" />
+  <meta name="theme-color" content="#0c0b10" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=Karla:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/kit/tokens.css" />
+  <link rel="stylesheet" href="assets/kit/base.css" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" type="image/svg+xml" href="assets/mark.svg" />
+</head>
+<body>
+
+<!-- ============ TOP BAR ============ -->
+<header class="topbar">
+  <div class="topbar-inner">
+    <a href="#" class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      gliim
+    </a>
+    <span class="status">
+      <span class="dot"></span>
+      <span class="status-text">Unit 000 · Trying</span>
+    </span>
+  </div>
+</header>
+
+<div class="page">
+
+<!-- ============ HERO ============ -->
+<section class="hero">
+  <div class="glow" aria-hidden="true"></div>
+  <div class="sl-wrap hero-inner">
+    <div class="hero-copy">
+      <span class="sl-kicker">Lighting for large indoor spaces</span>
+      <h1>gliim</h1>
+      <p class="tagline">The dim-witted gnome that tries.</p>
+      <p class="lede">You turn a knob. The light changes.<br>That is the whole of it.</p>
+    </div>
+
+    <div class="hero-knob">
+      <div class="knob" id="knob" role="slider" tabindex="0"
+           aria-label="Brightness" aria-valuemin="0" aria-valuemax="100" aria-valuenow="62">
+        <div class="knob-face"><span class="knob-notch"></span></div>
+      </div>
+      <p class="knob-caption">
+        <span class="knob-pct" id="knobPct">62</span>%
+        <span class="knob-hint">drag, scroll, or use arrow keys</span>
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ THE SCENE ============ -->
+<figure class="scene">
+  <img src="assets/hero.jpg" alt="A dim hall with three pendant lights lit to different levels, and a small three-knob panel on the near wall." />
+  <figcaption class="sl-wrap">A room where the light needs to change depending on what is happening in it.</figcaption>
+</figure>
+
+<!-- ============ ACT ONE — ONE KNOB, ONE LIGHT ============ -->
+<section class="text" id="simple">
+  <div class="sl-wrap">
+    <span class="sl-kicker">The whole interface</span>
+    <h2>One knob. One light.</h2>
+
+    <figure class="figure">
+      <svg class="ig ig-pairs" viewBox="0 0 760 220" role="img"
+           aria-label="Three knobs, each above a pool of light. Each knob controls only the light beneath it.">
+        <g class="pair" style="--i:0">
+          <circle class="ig-knob" cx="130" cy="52" r="24"/>
+          <line class="ig-notch" x1="130" y1="34" x2="130" y2="44"/>
+          <line class="ig-drop" x1="130" y1="80" x2="130" y2="120"/>
+          <ellipse class="ig-pool" cx="130" cy="160" rx="78" ry="30"/>
+        </g>
+        <g class="pair" style="--i:1">
+          <circle class="ig-knob" cx="380" cy="52" r="24"/>
+          <line class="ig-notch" x1="380" y1="34" x2="380" y2="44"/>
+          <line class="ig-drop" x1="380" y1="80" x2="380" y2="120"/>
+          <ellipse class="ig-pool" cx="380" cy="160" rx="78" ry="30"/>
+        </g>
+        <g class="pair" style="--i:2">
+          <circle class="ig-knob" cx="630" cy="52" r="24"/>
+          <line class="ig-notch" x1="630" y1="34" x2="630" y2="44"/>
+          <line class="ig-drop" x1="630" y1="80" x2="630" y2="120"/>
+          <ellipse class="ig-pool" cx="630" cy="160" rx="78" ry="30"/>
+        </g>
+      </svg>
+      <figcaption>The knob you reach for is the light that moves.</figcaption>
+    </figure>
+
+    <div class="split">
+      <div class="split-copy">
+        <p>
+          Turn it and the light follows your hand, all the way down to almost
+          nothing — no stepping, no flicker at the bottom, which is where the
+          useful settings live.
+        </p>
+        <p>
+          Press it and the light goes out. Press again and it comes back exactly
+          where you left it. There is nothing to select first, nothing to
+          remember, and nothing to install on a phone.
+        </p>
+      </div>
+      <figure class="shot">
+        <img src="assets/product.jpg" alt="The gliim enclosure: three knurled knobs in a row and one small warm indicator light below them." loading="lazy" />
+        <figcaption>Three knobs and one small light. There is nothing else on the face.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ============ THE TURN ============ -->
+<section class="turn">
+  <div class="sl-wrap">
+    <p class="turn-line">The knob does not have to be near the light.</p>
+  </div>
+</section>
+
+<!-- ============ ACT TWO — ACROSS THE HALL ============ -->
+<section class="text alt" id="hall">
+  <div class="sl-wrap">
+    <span class="sl-kicker">Across a room</span>
+    <h2>A panel at every door.</h2>
+
+    <figure class="figure wide">
+      <svg class="ig ig-hall" viewBox="0 0 840 470" role="img"
+           aria-label="A hall with three ceiling lights. Two panels share a thin cable that runs up to the lights; a third panel has no cable and reaches them without one. Every panel dims the same lights.">
+        <!-- room shell -->
+        <path class="ig-room" d="M40 40 H800 V300 H40 Z"/>
+        <line class="ig-floor" x1="40" y1="300" x2="800" y2="300"/>
+
+        <!-- ceiling run + three fixtures -->
+        <line class="ig-ceilrun" x1="150" y1="62" x2="690" y2="62"/>
+        <g class="fixtures">
+          <g class="fx" style="--i:0">
+            <line class="ig-stem" x1="230" y1="62" x2="230" y2="88"/>
+            <path class="ig-shade" d="M210 88 H250 L258 102 H202 Z"/>
+            <path class="ig-cone" d="M204 104 L256 104 L294 296 L166 296 Z"/>
+            <ellipse class="ig-pool" cx="230" cy="296" rx="64" ry="11"/>
+          </g>
+          <g class="fx" style="--i:1">
+            <line class="ig-stem" x1="420" y1="62" x2="420" y2="88"/>
+            <path class="ig-shade" d="M400 88 H440 L448 102 H392 Z"/>
+            <path class="ig-cone" d="M394 104 L446 104 L484 296 L356 296 Z"/>
+            <ellipse class="ig-pool" cx="420" cy="296" rx="64" ry="11"/>
+          </g>
+          <g class="fx" style="--i:2">
+            <line class="ig-stem" x1="610" y1="62" x2="610" y2="88"/>
+            <path class="ig-shade" d="M590 88 H630 L638 102 H582 Z"/>
+            <path class="ig-cone" d="M584 104 L636 104 L674 296 L546 296 Z"/>
+            <ellipse class="ig-pool" cx="610" cy="296" rx="64" ry="11"/>
+          </g>
+        </g>
+
+        <!-- the bus: panel A -> panel B, with one riser up to the lights -->
+        <path class="ig-cable"      d="M120 356 V332 H430 V356 M230 332 V62"/>
+        <path class="ig-cable-flow" d="M120 356 V332 H430 V356 M230 332 V62"/>
+
+        <!-- panel A — wired, near door -->
+        <g class="panel wired" style="--i:0">
+          <rect class="ig-panel" x="88" y="356" width="64" height="58" rx="9"/>
+          <circle class="ig-pknob" cx="106" cy="376" r="8"/>
+          <circle class="ig-pknob" cx="120" cy="376" r="8"/>
+          <circle class="ig-pknob" cx="134" cy="376" r="8"/>
+          <circle class="ig-dot"   cx="120" cy="398" r="3"/>
+          <text class="ig-label" x="120" y="440">by the door</text>
+        </g>
+
+        <!-- panel B — wired, far wall -->
+        <g class="panel wired" style="--i:1">
+          <rect class="ig-panel" x="398" y="356" width="64" height="58" rx="9"/>
+          <circle class="ig-pknob" cx="416" cy="376" r="8"/>
+          <circle class="ig-pknob" cx="430" cy="376" r="8"/>
+          <circle class="ig-pknob" cx="444" cy="376" r="8"/>
+          <circle class="ig-dot"   cx="430" cy="398" r="3"/>
+          <text class="ig-label" x="430" y="440">far wall · same cable</text>
+        </g>
+
+        <!-- panel C — no cable at all -->
+        <g class="panel wireless" style="--i:2">
+          <rect class="ig-panel" x="676" y="356" width="64" height="58" rx="9"/>
+          <circle class="ig-pknob" cx="694" cy="376" r="8"/>
+          <circle class="ig-pknob" cx="708" cy="376" r="8"/>
+          <circle class="ig-pknob" cx="722" cy="376" r="8"/>
+          <circle class="ig-dot"   cx="708" cy="398" r="3"/>
+          <g class="ig-waves">
+            <path class="w1" d="M664 372 a22 22 0 0 0 0 26"/>
+            <path class="w2" d="M650 362 a36 36 0 0 0 0 46"/>
+            <path class="w3" d="M636 352 a50 50 0 0 0 0 66"/>
+          </g>
+          <text class="ig-label" x="708" y="440">no cable</text>
+        </g>
+      </svg>
+      <figcaption>
+        Some panels on a thin cable that also carries their power. Some on nothing at all.
+        The knobs are identical, and so is the result.
+      </figcaption>
+    </figure>
+
+    <figure class="shot wide-shot">
+      <img src="assets/panel.jpg" alt="A gliim panel on a plastered wall beside a doorway, a thin cable running down from it into the wall." loading="lazy" />
+      <figcaption>One thin cable, carrying both the conversation and the power. Some panels do without even that.</figcaption>
+    </figure>
+
+    <div class="two-col">
+      <p>
+        A panel can sit by the near door, or on the far wall thirty paces away,
+        joined by a cable thin enough to run behind a skirting board. Where a
+        cable cannot go, a panel goes without one.
+      </p>
+      <p>
+        None of them needs to know about the others. Add one by the second
+        entrance and it simply works — turn either knob and the same lights
+        follow. Nobody has to be told which panel is in charge, because none of
+        them is.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ WHERE IT'S FOR ============ -->
+<section class="text" id="spaces">
+  <div class="sl-wrap narrow">
+    <span class="sl-kicker">Rooms it is for</span>
+    <h2>Places that outgrew the switch by the door.</h2>
+    <p>
+      Halls, dining rooms, workshops, studios, libraries, meeting rooms — spaces
+      big enough that the light needs to change depending on what is happening in
+      them, and where the person who wants it changed is rarely standing next to
+      the one switch that does it.
+    </p>
+    <p class="aside">
+      Everyone already knows how to use it. That is not a small thing in a room
+      full of people who did not read anything beforehand.
+    </p>
+  </div>
+</section>
+
+<!-- ============ HONESTY ============ -->
+<section class="text alt" id="honesty">
+  <div class="sl-wrap narrow">
+    <span class="sl-kicker">In fairness</span>
+    <h2>What it will not do.</h2>
+    <p>
+      It will not sense the room. It will not learn your habits, notice the
+      sunset, or form a view about your sleep. It has no clock and would not know
+      what to do with one. It cannot be reached from a phone, and adding that
+      would mean adding a great many things that go wrong when the internet does.
+    </p>
+    <p>
+      If the power fails it comes back on, at the level you left it. A light that
+      boots into darkness is a light that looks broken, and it has enough
+      shortcomings without inventing that one.
+    </p>
+  </div>
+</section>
+
+<!-- ============ THE THING ITSELF ============ -->
+<section class="text" id="unit">
+  <div class="sl-wrap narrow">
+    <span class="sl-kicker">The unit</span>
+    <h2>gliim-3</h2>
+    <p>
+      Three lights, three knobs, one small enclosure. Add panels until every
+      door has one. The renders above are how it is meant to end up; the boards
+      themselves are on the bench, which is a different and less photogenic
+      stage of the process.
+    </p>
+    <ul class="specs">
+      <li><span>Lights</span> three, dimmed separately</li>
+      <li><span>Control</span> a knob each — turn to dim, press for off</li>
+      <li><span>Panels</span> as many as the room has doors</li>
+      <li><span>Link</span> a thin two-pair cable, or none at all</li>
+      <li><span>Power</span> one USB-C supply for the whole thing</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============ FAMILY ============ -->
+<section class="text alt" id="family">
+  <div class="sl-wrap narrow">
+    <div class="sl-family">
+      <span class="sl-kicker">Family</span>
+      <h2>Part of <a class="sl-link" href="https://starstucklab.com">starstucklab</a>.</h2>
+      <p>A small ecosystem of personal engineering instruments, each built to solve one specific problem and then, ideally, stop demanding attention.</p>
+      <p>Where science met poetry, had a brief fling with engineering, and now raises mildly disillusioned but talented offspring.</p>
+    </div>
+  </div>
+</section>
+
+</div><!-- /page -->
+
+<footer class="sl-footer">
+  <div class="sl-wrap">
+    <div class="sl-footer-cols">
+      <div>
+        <h4>The build</h4>
+        <p>Schematics, firmware, BOM, wiring:<br><a href="https://github.com/m-anish/gliim">github&nbsp;↗</a></p>
+      </div>
+      <div>
+        <h4>The family</h4>
+        <p><a href="https://starstucklab.com">starstucklab&nbsp;↗</a><br>Other small machines.</p>
+      </div>
+    </div>
+    <div class="sl-support">
+      <span class="sl-support-note">Keep the lab caffeinated:</span>
+      <a href="https://buymeachai.ezee.li/anishmg" target="_blank" rel="noopener">☕ Buy me a chai</a>
+      <a href="https://ko-fi.com/P5P7BMO10" target="_blank" rel="noopener">♥ Ko-fi</a>
+    </div>
+    <div class="sl-signoff">
+      <span>A starstucklab project</span>
+      <span>Building small machines for an indifferent universe.</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+/* The hero knob. It is the product, so it may as well behave like it. */
+(function () {
+  var knob = document.getElementById('knob');
+  var pct  = document.getElementById('knobPct');
+  if (!knob) return;
+
+  var value = 62;
+  var MIN_ANGLE = -140, MAX_ANGLE = 140;
+
+  function render() {
+    var t = value / 100;
+    knob.style.setProperty('--angle', (MIN_ANGLE + t * (MAX_ANGLE - MIN_ANGLE)) + 'deg');
+    document.documentElement.style.setProperty('--lit', Math.pow(t, 2.2).toFixed(4));
+    knob.setAttribute('aria-valuenow', Math.round(value));
+    pct.textContent = Math.round(value);
+  }
+  function nudge(d) { value = Math.max(0, Math.min(100, value + d)); render(); }
+
+  var dragging = false, lastY = 0;
+  knob.addEventListener('pointerdown', function (e) {
+    dragging = true; lastY = e.clientY; knob.setPointerCapture(e.pointerId);
+  });
+  knob.addEventListener('pointermove', function (e) {
+    if (!dragging) return;
+    nudge((lastY - e.clientY) * 0.5); lastY = e.clientY;
+  });
+  knob.addEventListener('pointerup',     function () { dragging = false; });
+  knob.addEventListener('pointercancel', function () { dragging = false; });
+  knob.addEventListener('wheel', function (e) {
+    e.preventDefault(); nudge(e.deltaY > 0 ? -3 : 3);
+  }, { passive: false });
+  knob.addEventListener('keydown', function (e) {
+    var k = e.key;
+    if (k === 'ArrowUp'   || k === 'ArrowRight') { nudge(3);  e.preventDefault(); }
+    if (k === 'ArrowDown' || k === 'ArrowLeft')  { nudge(-3); e.preventDefault(); }
+    if (k === 'Home') { value = 0;   render(); e.preventDefault(); }
+    if (k === 'End')  { value = 100; render(); e.preventDefault(); }
+  });
+
+  render();
+})();
+
+/* Play the infographics only while they are on screen. */
+(function () {
+  var figs = document.querySelectorAll('.ig');
+  if (!('IntersectionObserver' in window)) {
+    figs.forEach(function (f) { f.classList.add('run'); });
+    return;
+  }
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (en) { en.target.classList.toggle('run', en.isIntersecting); });
+  }, { threshold: 0.25 });
+  figs.forEach(function (f) { io.observe(f); });
+})();
+</script>
+
+</body>
+</html>

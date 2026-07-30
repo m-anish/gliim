@@ -1,25 +1,25 @@
 # Roadmap
 
-> **⚠ Partly superseded.** glim pivoted to **one EC11 encoder per channel** and
+> **⚠ Partly superseded.** gliim pivoted to **one EC11 encoder per channel** and
 > **control panels on an RS-485 bus** — see
 > [`docs/architecture.md`](docs/architecture.md), which is the current plan of
 > record. Tiers below that assume a single box with a joystick (channel
 > indicators, the ack-blink, the 6-channel split-mode path, the "second control
 > point" work) are obsolete; the bus replaces them. The resource budget, the
-> Tier-0 firmware items and the glim/lokki boundary still hold.
+> Tier-0 firmware items and the gliim/lokki boundary still hold.
 
-Where glim can go without losing the plot. The organizing principle is **stay
-tiny and tactile**: glim is a thing you operate by feel, in the dark, with no
+Where gliim can go without losing the plot. The organizing principle is **stay
+tiny and tactile**: gliim is a thing you operate by feel, in the dark, with no
 app and no network. Enhancements are welcome as long as they respect that.
 
-## What glim is (and isn't)
+## What gliim is (and isn't)
 
 - **Is:** a local, physical, single-hand dimmer. Instant. No pairing, no cloud,
   no clock to set. Turn it on and it just works.
 - **Isn't:** a scheduler, a networked fleet node, or an app endpoint. The moment
   a feature wants Wi-Fi, time-of-day automation, or multi-unit coordination, it
   belongs in [lokki](https://github.com/m-anish/lokki), not here. That boundary
-  is what keeps glim on a $0.60 MCU.
+  is what keeps gliim on a $0.60 MCU.
 
 Everything below is sized to an ATtiny814-class part. rev1 is now at **71 % of
 flash and 27 % of RAM**, and every pin is allocated — so on rev1 both headroom
@@ -48,7 +48,7 @@ growth belongs on rev2's ATtiny3216 rather than here.
 
 **The channels/resolution trade:** TCA0 split mode has six outputs (WO0–WO2 →
 PB0/1/2, WO3–WO5 → PA3/4/5) but is 8-bit; normal mode has three and is 16-bit.
-glim ships normal mode — for a dimmer, depth beats channel count. Six 8-bit
+gliim ships normal mode — for a dimmer, depth beats channel count. Six 8-bit
 channels remain available as a config change if you ever want them.
 
 ---
@@ -63,7 +63,7 @@ firmware — the ✅ rows below.**
 |------|-----|-------|
 | ⤴ **Temporal dithering** | Was the biggest win at 8-bit: dithering between adjacent duty steps bought extra effective bits. | *Superseded.* Shipped, then **removed** when the LEDs moved to 16-bit PWM, which exceeds what dithering bought and costs no flicker margin. Still the right tool if you ever take the 6-channel/8-bit option — see rev2 §4. |
 | ✅ **Soft transitions** | Fade in/out on power-up, toggle, and scene changes instead of snapping. Feels premium, easier on the eye at night. | *Done:* setpoint→slewed-display model, `FADE_MS` in config. |
-| ✅ **Watchdog** | It's an unattended, installed device. WDT auto-recovers from any hang. | *Done:* ~2 s WDT, kicked in `loop()`, `GLIM_WATCHDOG` in config. |
+| ✅ **Watchdog** | It's an unattended, installed device. WDT auto-recovers from any hang. | *Done:* ~2 s WDT, kicked in `loop()`, `GLIIM_WATCHDOG` in config. |
 | ✅ **EEPROM struct versioning** | A `version` byte beside the magic so future firmware can migrate saved state instead of resetting the room to defaults on update. | *Done:* `EE_VERSION` in the persist struct. |
 | ✅ **Factory-reset gesture** | Hold the switch *during power-on* → wipe EEPROM to defaults. Field-recoverable without a programmer. | *Done:* hold-to-arm with swell + flash feedback, `FACTORY_HOLD_MS` in config. |
 | **Per-channel min/max clamps** | Some LED strings flicker below X% or are never wanted above Y%. Config-only limits. | In `config.h`. |
@@ -79,8 +79,8 @@ Small parts, one or two pins each. Pick à la carte.
 | **3 channel indicator LEDs** | LED + 1 kΩ per channel, **0 pins** | Live brightness meter at the joystick | Piggyback on PB0/PB1/PB2. Brightness mirrors each channel's level for free. Shows *level*, not *selection*. |
 | ✅ **1 status LED** | 1 pin (PA6) | "the system is on" | *Done.* Deliberately **not** channel-coded — selecting a channel blinks that light, and the per-channel indicators show level, so a shared indicator has nothing left to say. rev1 drives its fitted WS2812 as a plain lamp; rev2 uses one discrete LED. |
 | ✅ **IR receiver** | 3-pin TSOP (e.g. 38 kHz), 1 pin | **Couch control** — huge for a home | *Done:* falling-edge ISR decoding NEC on PB3, plus a learn mode binding six actions to any remote. |
-| **Ambient light sensor** | LDR/phototransistor + resistor, 1 ADC pin (PA6) | Auto-cap brightness in daylight | Optional, behind a config flag — glim stays manual-first. (This is a lokki idea scaled down.) |
-| **PIR motion sensor** | 3-pin PIR module, 1 pin | Auto-on/off for halls, utility spaces | Turns glim "automatic"; keep it opt-in so it never surprises someone who just wants a manual dimmer. |
+| **Ambient light sensor** | LDR/phototransistor + resistor, 1 ADC pin (PA6) | Auto-cap brightness in daylight | Optional, behind a config flag — gliim stays manual-first. (This is a lokki idea scaled down.) |
+| **PIR motion sensor** | 3-pin PIR module, 1 pin | Auto-on/off for halls, utility spaces | Turns gliim "automatic"; keep it opt-in so it never surprises someone who just wants a manual dimmer. |
 
 > Recommended Tier-1 combo: **3 indicator LEDs + 1 status LED + IR receiver.**
 > Three cheap parts, two pins (indicators are free — they hang off the PWM
@@ -126,8 +126,8 @@ requirement can't be met on a tiny part:
   for zero-PWM dimming — but only one channel (one DAC), and current-dimming
   shifts LED color vs. PWM. A curiosity, not a default.
 - **Scheduling / sunrise-wake / networked or multi-room control / an app:** this
-  is the graduation line. Don't bolt a radio onto glim — that's exactly what
-  **lokki** already is. Let glim be the tactile local node and hand the rest to
+  is the graduation line. Don't bolt a radio onto gliim — that's exactly what
+  **lokki** already is. Let gliim be the tactile local node and hand the rest to
   its bigger sibling.
 
 ---

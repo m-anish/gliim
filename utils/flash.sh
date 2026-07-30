@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# glim — build and flash over serialUPDI (ATtiny3216).
+# gliim — build and flash over serialUPDI (ATtiny3216).
 #
 # The port is auto-detected (see utils/find-port.sh); override with --port.
 # With no action flags it builds and uploads.
@@ -9,7 +9,7 @@
 #   utils/flash.sh --build         compile only, don't touch the chip
 #   utils/flash.sh --fuses         write fuses (once per fresh chip)
 #   utils/flash.sh --fuses --upload   fuses, then firmware
-#   utils/flash.sh --debug         build with GLIM_DEBUG=1 and upload
+#   utils/flash.sh --debug         build with GLIIM_DEBUG=1 and upload
 #   utils/flash.sh --debug --monitor  ...and then open the serial console
 #   utils/flash.sh --monitor       just watch a board that's already running
 #   utils/flash.sh --list          just show the candidate ports
@@ -36,7 +36,7 @@ MONITOR_BAUD=115200
 
 usage() {
   cat <<'EOF'
-glim flash utility
+gliim flash utility
 
 Usage: utils/flash.sh [options]
 
@@ -51,7 +51,7 @@ Actions (default: --upload):
   -l, --list         List candidate serial ports and exit.
 
 Options:
-  -d, --debug        Build with GLIM_DEBUG=1 (telemetry on the debug TX pin).
+  -d, --debug        Build with GLIIM_DEBUG=1 (telemetry on the debug TX pin).
   -p, --port PORT    Use this port instead of auto-detecting.
   -s, --speed BAUD   Upload speed (default: platformio.ini, 230400).
       --slow         Shorthand for --speed 115200, for flaky uploads.
@@ -65,7 +65,7 @@ Notes:
   * --debug forces the IR decoder off: SoftwareSerial's interrupt dispatcher
     claims the PORT vectors the IR ISR needs. See include/config.h.
   * Tunables (ramp speed, deadzones, PWM tiers, axis inversion) live in
-    include/config.h — this script only selects the board and GLIM_DEBUG.
+    include/config.h — this script only selects the board and GLIIM_DEBUG.
 EOF
 }
 
@@ -81,7 +81,7 @@ while (( $# )); do
     -l|--list)    DO_LIST=1 ;;
     -d|--debug)   DEBUG=1 ;;
     -r|--rev|--rev1|--rev2)
-                  echo "glim is rev2-only now; rev1 is retired in deprecated/." >&2; exit 1 ;;
+                  echo "gliim is rev2-only now; rev1 is retired in deprecated/." >&2; exit 1 ;;
     -n|--dry-run) DRY=1 ;;
     -v|--verbose) VERBOSE=1 ;;
     --slow)       SPEED=115200 ;;
@@ -103,7 +103,7 @@ if (( !DO_BUILD && !DO_UPLOAD && !DO_FUSES && !DO_MONITOR && !DO_CLEAN )) ||
   DO_UPLOAD=1
 fi
 
-ENV_MAIN=glim; ENV_FUSES=fuses
+ENV_MAIN=gliim; ENV_FUSES=fuses
 
 # --- helpers -----------------------------------------------------------------
 
@@ -133,7 +133,7 @@ TMPCONF=""
 cleanup() { [[ -n "$TMPCONF" && -f "$TMPCONF" ]] && rm -f "$TMPCONF"; }
 trap cleanup EXIT
 if [[ -n "$SPEED" ]]; then
-  TMPCONF="$(mktemp "${TMPDIR:-/tmp}/glim-pio-XXXXXX.ini")"
+  TMPCONF="$(mktemp "${TMPDIR:-/tmp}/gliim-pio-XXXXXX.ini")"
   sed -E "s/^([[:space:]]*upload_speed[[:space:]]*=).*/\1 $SPEED/" platformio.ini > "$TMPCONF"
   PIO_ARGS+=(-c "$TMPCONF")
   echo "Upload speed: $SPEED" >&2
@@ -142,9 +142,9 @@ fi
 echo "Target: ATtiny3216  (env $ENV_MAIN)" >&2
 
 if (( DEBUG )); then
-  export PLATFORMIO_BUILD_FLAGS="-DGLIM_DEBUG=1"
+  export PLATFORMIO_BUILD_FLAGS="-DGLIIM_DEBUG=1"
   DBGPIN=PB2
-  echo "Build: GLIM_DEBUG=1 (telemetry on $DBGPIN @${MONITOR_BAUD}, IR disabled)" >&2
+  echo "Build: GLIIM_DEBUG=1 (telemetry on $DBGPIN @${MONITOR_BAUD}, IR disabled)" >&2
 fi
 
 # --- go ----------------------------------------------------------------------

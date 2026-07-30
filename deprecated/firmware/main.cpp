@@ -1,4 +1,4 @@
-// glim — a joystick-controlled 3-channel LED dimmer on an ATtiny814.
+// gliim — a joystick-controlled 3-channel LED dimmer on an ATtiny814.
 //
 //   up / down     ramp the selected channel brighter / dimmer (speed follows
 //                 how far you push)
@@ -27,17 +27,17 @@
 #include <util/atomic.h>
 #include "config.h"
 
-#if GLIM_STATUS_PIXEL
+#if GLIIM_STATUS_PIXEL
 #include <tinyNeoPixel_Static.h>
 #endif
 
-#if GLIM_DEBUG
-#if GLIM_DEBUG_HW_SERIAL
+#if GLIIM_DEBUG
+#if GLIIM_DEBUG_HW_SERIAL
 // rev2: LED ch3 sits on WO2's alternate pin, so USART0's own pins are free.
 #define dbg Serial
 #else
 // rev1: no hardware USART (its TXD is LED ch3), so bit-bang. This is what
-// forces GLIM_IR off in rev1 debug builds — see config.h.
+// forces GLIIM_IR off in rev1 debug builds — see config.h.
 #include <SoftwareSerial.h>
 static SoftwareSerial dbg(DEBUG_RX_PIN, DEBUG_TX_PIN);
 #endif
@@ -79,7 +79,7 @@ static uint32_t lastTick = 0;
 static bool     dirty = false;          // state changed since last EEPROM save
 static uint32_t dirtyAt = 0;
 
-#if GLIM_IR
+#if GLIIM_IR
 static uint32_t irMap[IR_ACT_COUNT];    // learned NEC codes, 0 = unbound
 static bool     irBound = false;
 #endif
@@ -94,7 +94,7 @@ struct Persist {
   uint8_t  selected;
   uint8_t  level[NUM_CHANNELS];
   uint8_t  muted[NUM_CHANNELS];
-#if GLIM_IR
+#if GLIIM_IR
   uint8_t  irBound;
   uint32_t ir[IR_ACT_COUNT];
 #endif
@@ -163,7 +163,7 @@ static void renderChannel(uint8_t ch) {
 // (flicker barely reads when faint, and the min-on-time floor shrinks in counts,
 // so the dim end genuinely gets deeper). Three tiers with hysteresis so it can't
 // hunt at a boundary.
-#if GLIM_VARIABLE_PWM_FREQ
+#if GLIIM_VARIABLE_PWM_FREQ
 static void updatePwmFreq() {
   uint8_t maxlvl = 0;
   for (uint8_t ch = 0; ch < NUM_CHANNELS; ch++) {
@@ -226,7 +226,7 @@ static void slewAndRender(uint32_t dtMs) {
 // falls out. 13.5 ms header, then 1.125 ms per '0' and 2.25 ms per '1', 32 bits
 // LSB-first. A held button sends an 11.25 ms repeat frame every ~108 ms.
 
-#if GLIM_IR
+#if GLIIM_IR
 static volatile uint32_t irCode = 0;      // last complete 32-bit frame
 static volatile bool     irReady = false;
 static volatile uint32_t irActivityMs = 0; // last header/repeat — "still held"
@@ -282,7 +282,7 @@ static bool irHeld() {
   ATOMIC_BLOCK(ATOMIC_RESTORESTATE) { t = irActivityMs; }
   return (millis() - t) < IR_HOLD_MS;
 }
-#endif  // GLIM_IR
+#endif  // GLIIM_IR
 
 // ---------------------------------------------------------------------------
 // Persistence
@@ -299,7 +299,7 @@ static void loadState() {
       level[i] = p.level[i];
       muted[i] = p.muted[i];
     }
-#if GLIM_IR
+#if GLIIM_IR
     irBound = p.irBound;
     for (uint8_t i = 0; i < IR_ACT_COUNT; i++) irMap[i] = p.ir[i];
 #endif
@@ -311,7 +311,7 @@ static void loadState() {
       level[i] = DEFAULT_LEVEL;
       muted[i] = false;
     }
-#if GLIM_IR
+#if GLIIM_IR
     irBound = false;
     for (uint8_t i = 0; i < IR_ACT_COUNT; i++) irMap[i] = 0;
 #endif
@@ -343,7 +343,7 @@ static void saveState() {
     p.level[i] = level[i];
     p.muted[i] = muted[i];
   }
-#if GLIM_IR
+#if GLIIM_IR
   p.irBound = irBound;
   for (uint8_t i = 0; i < IR_ACT_COUNT; i++) p.ir[i] = irMap[i];
 #endif
@@ -361,7 +361,7 @@ static void saveState() {
 // for free — no extra pins, since it just sits on the PWM output. So this is only
 // a lamp, rendered on whatever the board has fitted.
 
-#if GLIM_STATUS_PIXEL
+#if GLIIM_STATUS_PIXEL
 static uint8_t pixelBuf[3];
 static tinyNeoPixel statusPixel = tinyNeoPixel(1, STATUS_PIXEL_PIN, NEO_GRB, pixelBuf);
 
@@ -380,7 +380,7 @@ static void statusSet(bool on) {
   statusPixel.show();
 }
 
-#elif GLIM_STATUS_LED
+#elif GLIIM_STATUS_LED
 static inline void ledWrite(bool on) {
 #if STATUS_LED_ACTIVE_LOW
   digitalWrite(STATUS_LED_PIN, on ? LOW : HIGH);
@@ -404,7 +404,7 @@ static void statusSet(bool) {}
 // Called every loop. Lit whenever firmware is running — optionally pulsing, so a
 // live board is distinguishable from one the watchdog keeps resetting.
 static void statusRender() {
-#if GLIM_STATUS_HEARTBEAT
+#if GLIIM_STATUS_HEARTBEAT
   statusSet((millis() % STATUS_HEARTBEAT_MS) < (STATUS_HEARTBEAT_MS / 8));
 #else
   statusSet(true);
@@ -515,7 +515,7 @@ static void ackBlink(uint8_t ch) {
 // duplicates an already-bound code is rejected with a red flash and re-asked.
 // Ten seconds of silence ends the walk and saves what's bound so far.
 
-#if GLIM_IR
+#if GLIIM_IR
 static void irLearn() {
   uint32_t learned[IR_ACT_COUNT];
   uint8_t  n = 0;
@@ -580,7 +580,7 @@ static void irDispatch(uint32_t code) {
     return;
   }
 }
-#endif  // GLIM_IR
+#endif  // GLIIM_IR
 
 // If the joystick button is held at power-on, wipe saved state back to
 // defaults. All channels swell up together as a "charging" cue while held; a
@@ -648,7 +648,7 @@ static void handleSwitch() {
     actToggleAll();
   }
 
-#if GLIM_IR
+#if GLIIM_IR
   // Still holding well past that → IR learn mode. Undo the all-toggle first, so
   // the gesture doesn't leave the room in a state you didn't ask for.
   if (swLongFired && !swLearnFired && now - swChangedAt >= IR_LEARN_HOLD_MS) {
@@ -719,7 +719,7 @@ static void calibrateCentre() {
 void setup() {
   pinMode(JOY_SW_PIN, INPUT_PULLUP);
   statusInit();
-#if GLIM_I2C && defined(QWIIC_EN_PIN)
+#if GLIIM_I2C && defined(QWIIC_EN_PIN)
   // Power the Qwiic rail. Its LDO has a pulldown on ENABLE, so the bus stays
   // dead until this runs — nothing downstream is energised before firmware is.
   pinMode(QWIIC_EN_PIN, OUTPUT);
@@ -727,22 +727,22 @@ void setup() {
 #endif
   pwmInit();
 
-#if GLIM_DEBUG
+#if GLIIM_DEBUG
   dbg.begin(115200);
-#if GLIM_DEBUG_HW_SERIAL
+#if GLIIM_DEBUG_HW_SERIAL
   // Transmit only: USART0's RXD pin is an LED output on this board, so leaving
   // the receiver enabled would have it interrupting on the PWM waveform.
   USART0.CTRLB &= ~USART_RXEN_bm;
 #endif
-  dbg.println(F("glim boot"));
+  dbg.println(F("gliim boot"));
 #endif
 
-#if GLIM_FACTORY_RESET
+#if GLIIM_FACTORY_RESET
   factoryResetCheck();
 #endif
   calibrateCentre();
   loadState();
-#if GLIM_IR
+#if GLIIM_IR
   irInit();
 #endif
   statusRender();
@@ -771,7 +771,7 @@ void setup() {
 
   ackBlink(selected);          // show which channel is active at startup
 
-#if GLIM_WATCHDOG
+#if GLIIM_WATCHDOG
   _PROTECTED_WRITE(WDT.CTRLA, WDT_PERIOD_2KCLK_gc);   // ~2 s
 #endif
   lastTick = millis();
@@ -787,7 +787,7 @@ void loop() {
   handleSelect();
   handleSwitch();
 
-#if GLIM_IR
+#if GLIIM_IR
   uint32_t code;
   if (irTake(&code)) irDispatch(code);
   // A held remote button repeats every ~108 ms; keep ramping while they last.
@@ -803,11 +803,11 @@ void loop() {
 
   if (dirty && (now - dirtyAt) >= EEPROM_SAVE_DELAY_MS) saveState();
 
-#if GLIM_WATCHDOG
+#if GLIIM_WATCHDOG
   wdt_reset();
 #endif
 
-#if GLIM_DEBUG
+#if GLIIM_DEBUG
   static uint32_t dbgLast = 0;
   if (now - dbgLast > 250) {
     dbgLast = now;

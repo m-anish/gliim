@@ -1,4 +1,4 @@
-# glim rev2 — hardware specification
+# gliim rev2 — hardware specification
 
 The rev1 board is a hand-soldered proof that the idea works: a joystick, three
 PT4115 drivers, an ATtiny814. rev2 keeps that shape and fixes the things rev1
@@ -241,7 +241,7 @@ part — it has a single TCA.
 | 6 channels **+ dithering** | TCA0 split | 8+2 bits | 0.098 % | **1024:1** | ~4.4 % |
 
 Straight 8-bit is **6.4× shallower** — the exact gap that motivated 16-bit in the
-first place. But temporal dithering (which glim had at 8-bit, and dropped as
+first place. But temporal dithering (which gliim had at 8-bit, and dropped as
 redundant once 16-bit landed) buys most of it back:
 
 - run split mode at **DIV64 = 1221 Hz**, where one count is 3.2 µs — still above
@@ -366,11 +366,11 @@ pulldown and the socket.
 
 An I²C port turns several roadmap items into plug-in modules rather than board
 respins: an **ambient-light sensor** (VEML7700, BH1750) to cap brightness in
-daylight, an **RTC** for time-of-day behaviour, a small **OLED** if glim ever
+daylight, an **RTC** for time-of-day behaviour, a small **OLED** if gliim ever
 wants a screen, or an **I/O expander** for more buttons. It's the cheapest
 future-proofing on the board.
 
-Firmware exposes nothing on the bus yet — `GLIM_I2C` in `config.h` just records
+Firmware exposes nothing on the bus yet — `GLIIM_I2C` in `config.h` just records
 that the pins are reserved.
 
 ---
@@ -492,7 +492,7 @@ software PWM (`STATUS_LED_DIV`, "lit 1 ms in every N" — default 12.5 % at
 125 Hz), so it consumes no timer and can be turned down if it's distracting at
 night. Set `STATUS_LED_ACTIVE_LOW` if you wire it to V_DD rather than GND.
 
-`GLIM_STATUS_HEARTBEAT` optionally makes it pulse slowly instead of sitting
+`GLIIM_STATUS_HEARTBEAT` optionally makes it pulse slowly instead of sitting
 steady. Steady says "powered"; pulsing says "firmware is running", which
 distinguishes a live board from one the watchdog keeps resetting. Off by
 default — useful on the bench, busier in a bedroom.
@@ -576,7 +576,7 @@ Electronics ≈ **₹900–1200 / $11–15** per unit, excluding LEDs and charge
 
 ## 9. Firmware
 
-**One source builds both boards.** `include/config.h` carries a `GLIM_BOARD`
+**One source builds both boards.** `include/config.h` carries a `GLIIM_BOARD`
 switch (1 = rev1/ATtiny814, 2 = rev2/ATtiny3216) selecting the pin map; every
 tunable below it is shared. The build environment sets it, so nothing needs
 editing to change target:
@@ -606,7 +606,7 @@ Current footprint: **6 430 B of 32 768 (19.6 %)**, 137 B of 2 048 RAM (6.7 %).
 
 ### Still to do for rev2
 
-1. **Ladder input decode** behind a `GLIM_INPUT_LADDER` flag, with
+1. **Ladder input decode** behind a `GLIIM_INPUT_LADDER` flag, with
    hold-to-accelerate ramping ([`input.md`](input.md) §2.5 has the decoder).
 2. **Retune** `JOY_*` deadzones/thresholds for whichever input gets populated.
 3. *Optional:* move the IR decoder to `attachInterrupt()` so IR and debug

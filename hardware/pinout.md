@@ -1,4 +1,4 @@
-# glim — numbered pinouts
+# gliim — numbered pinouts
 
 Authoritative pin assignments for both boards, by **physical package pin number**,
 ready to lay out against.

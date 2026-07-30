@@ -216,7 +216,7 @@ Stick A resting at centre, stick B pushed:
 
 Deflection compresses to about **half near centre**, recovering to full only at
 the very end of travel — because at the extremes the wiper is a hard short to the
-rail and wins outright. Consequences for glim's constants:
+rail and wins outright. Consequences for gliim's constants:
 
 - the 110-count **deadzone** effectively doubles — you push twice as far before
   anything happens;

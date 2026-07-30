@@ -78,7 +78,7 @@ from it; §2 has the table if you want a different current.
 > **On a capacitor across the LED string:** the datasheet does document one (p13,
 > *Reducing output ripple*) and it is perfectly safe — it does *not* destabilise
 > the loop, because `R_S` senses the **inductor** current and the inductor stays
-> in series. glim still leaves it off, but for a different reason. See §4.3.
+> in series. gliim still leaves it off, but for a different reason. See §4.3.
 
 Current path, switch **on**: `V_LED → R_S → LED → L → SW → GND`.
 Switch **off**: the inductor keeps the current going and it freewheels
@@ -386,8 +386,8 @@ while the inductor keeps its 200 mA triangular ramp. The hysteretic comparator
 sees exactly the waveform it saw before — hence "will not affect operating
 frequency or efficiency". The loop never knows the cap is there.
 
-**Why glim still leaves it off.** The clause that matters for us is *"reduce the
-frequency of dimming, by reducing the rate of rise of LED voltage."* glim's whole
+**Why gliim still leaves it off.** The clause that matters for us is *"reduce the
+frequency of dimming, by reducing the rate of rise of LED voltage."* gliim's whole
 proposition is deep PWM dimming — a **2 µs minimum on-time**, which is a single
 switching cycle at ~300 kHz. A 1 µF cap across a 16 V string has to be charged
 and discharged before LED current can follow, so pulses that short get smeared
@@ -453,7 +453,7 @@ R_pd = 10 kΩ:  V_DIM = 5 × 10/210 = 0.238 V  ✓ safely off
 > a non-dimming build, this is the knob to turn.)
 
 **PWM dimming keeps colour constant** — the LED runs at full amplitude or not at
-all — whereas analog current dimming shifts white LEDs warm. That's why glim
+all — whereas analog current dimming shifts white LEDs warm. That's why gliim
 dims with PWM.
 
 ### Minimum on-time — the number that sets your dimming floor
@@ -469,7 +469,7 @@ the same physical limit:
 Hence "5000:1" at 100 Hz and 25:1 at 20 kHz. **Dimming depth is therefore
 `period / 2 µs` — lower PWM frequency buys depth, higher frequency spends it.**
 
-What that means for glim's 20 MHz / 16-bit / 305 Hz plan:
+What that means for gliim's 20 MHz / 16-bit / 305 Hz plan:
 
 ```
 period      = 3.279 ms

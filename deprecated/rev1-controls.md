@@ -1,6 +1,6 @@
 # Controls
 
-glim is meant to be operable in the dark, by feel, by someone who has never seen
+gliim is meant to be operable in the dark, by feel, by someone who has never seen
 the code. One joystick, four gestures.
 
 ## The gestures
@@ -21,14 +21,14 @@ cancel and boot normally.
 
 ## The remote
 
-glim accepts any **NEC-protocol** IR remote — the near-universal cheap kind,
+gliim accepts any **NEC-protocol** IR remote — the near-universal cheap kind,
 including a 44-key LED-strip remote or a spare TV remote. Nothing is hardcoded to
 a particular model: you teach it which buttons you want.
 
 ### Teaching it (learn mode)
 
 **Hold the joystick button for about 3 seconds.** You'll feel the all-off toggle
-fire at ~0.7 s on the way — keep holding; glim undoes it when learn mode starts,
+fire at ~0.7 s on the way — keep holding; gliim undoes it when learn mode starts,
 so the room ends up as it was.
 
 The lights go out and the status LED starts blinking. It walks six actions in
@@ -66,7 +66,7 @@ behaves identically, so the light you're steering still identifies itself from
 across the room.
 
 > With no receiver fitted, the input pin idles high on its pull-up and nothing
-> ever decodes — leaving `GLIM_IR` enabled costs nothing.
+> ever decodes — leaving `GLIIM_IR` enabled costs nothing.
 
 ## How it feels, and why
 
@@ -95,7 +95,7 @@ across the room.
 - **It remembers.** State is written to EEPROM a few seconds after you stop, and
   restored on boot — so a wall switch (or a power blip) brings the room back the
   way you left it, not black or blazing.
-- **It never boots dark.** Giving glim power is itself a request for light, so if
+- **It never boots dark.** Giving gliim power is itself a request for light, so if
   the saved scene was entirely off, it comes up lit at its remembered levels
   rather than restoring the darkness. Per-channel choices still survive; only a
   wholly-dark scene is overridden. (Otherwise flipping the wall switch on and
@@ -130,6 +130,6 @@ most likely to touch:
 ### Calibration note
 
 The stick's centre is measured automatically at power-on, so **leave the joystick
-released while it boots**. If your resting readings drift, set `GLIM_DEBUG 1` in
+released while it boots**. If your resting readings drift, set `GLIIM_DEBUG 1` in
 `config.h`, reflash, and open `pio device monitor` (115200) to watch live X/Y
 values while you find good deadzone/threshold numbers.

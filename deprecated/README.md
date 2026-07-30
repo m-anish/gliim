@@ -58,7 +58,7 @@ utils/flash.sh --fuses    # once per fresh chip — clock/BOD/EESAVE
 utils/flash.sh            # rev1 = ATtiny814, the default target
 ```
 
-`GLIM_BOARD` in `config.h` picks the board (1 = ATtiny814, 2 = ATtiny3216);
+`GLIIM_BOARD` in `config.h` picks the board (1 = ATtiny814, 2 = ATtiny3216);
 `utils/flash.sh --rev2` sets it via `-DGLIM_BOARD=2`.
 
 If you would rather have an AI rebuild it from scratch, the three things it must

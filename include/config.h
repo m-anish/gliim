@@ -1,4 +1,4 @@
-// config.h — glim hardware map and behaviour tunables.
+// config.h — gliim hardware map and behaviour tunables.
 //
 // Everything you'd want to adjust for a given build lives here. The pin choices
 // are not arbitrary — they are forced by which pins can emit a TCA0 waveform and
@@ -53,7 +53,7 @@
 // The board runs at 5 V, so the Qwiic port is bridged by a **3.3 V LDO + BSS138
 // level translator** — Qwiic is a 3.3 V standard and a shared pull-up does not
 // substitute (see hardware/board.md §5).
-#define GLIM_I2C 1
+#define GLIIM_I2C 1
 
 // The LDO's ENABLE pin, so firmware can cut power to the Qwiic bus and whatever
 // is plugged into it. Useful for saving standby current, and for power-cycling a
@@ -87,12 +87,12 @@
 // output. See hardware/board.md §7.
 //
 // One GPIO, one resistor, no library, no bit-bang, any supply rail.
-#define GLIM_STATUS_LED       1
+#define GLIIM_STATUS_LED       1
 #define STATUS_LED_PIN        PIN_PC1
 #define STATUS_LED_ACTIVE_LOW 0     // 1 if you wire it to VDD instead of GND
 
 // Hardware USART0, TX only (see above). Wire the adapter's RX to PB2.
-#define GLIM_DEBUG_HW_SERIAL 1
+#define GLIIM_DEBUG_HW_SERIAL 1
 
 // PA3/PA4/PA5 are TCA0 WO3/WO4/WO5 — LED channels 4-6 if you populate the
 // expansion drivers, but only in split mode, which costs the 16-bit resolution.
@@ -126,7 +126,7 @@
 // (stroboscopic flicker is visible there), low when dim (flicker barely reads
 // when faint, and the min-on-time floor shrinks in counts, so dim gets deeper).
 // Set to 0 to hold PWM_CLKSEL_MID fixed.
-#define GLIM_VARIABLE_PWM_FREQ 1
+#define GLIIM_VARIABLE_PWM_FREQ 1
 
 // DIV1 with PER=65535 is the *ceiling* — full 16-bit resolution needs the whole
 // period — so the tiers only ever step downward from it. Both boards run 5 V /
@@ -210,10 +210,10 @@
 // findable in a dark room.
 // One status concept, two renderings: rev1 lights its fitted WS2812, rev2 a
 // plain LED. Both mean the same thing — the system is powered and running.
-#if GLIM_STATUS_LED
-#define GLIM_STATUS_PIXEL 0
+#if GLIIM_STATUS_LED
+#define GLIIM_STATUS_PIXEL 0
 #else
-#define GLIM_STATUS_PIXEL 1
+#define GLIIM_STATUS_PIXEL 1
 #endif
 
 // Colour per channel, 0xRRGGBB.
@@ -229,7 +229,7 @@
 // Set to 1 for a slow pulse instead of a steady lamp. Steady says "powered";
 // pulsing says "firmware is running", which distinguishes a live board from one
 // the watchdog is resetting. Handy on the bench, busier in a bedroom.
-#define GLIM_STATUS_HEARTBEAT 0
+#define GLIIM_STATUS_HEARTBEAT 0
 #define STATUS_HEARTBEAT_MS 2000
 
 
@@ -239,7 +239,7 @@
 
 // Safe to leave enabled with no receiver fitted: the pin idles high on its
 // internal pull-up, so no edges arrive and nothing ever decodes.
-#define GLIM_IR 1
+#define GLIIM_IR 1
 
 // Six actions are learnable, in this order. Learn mode walks them one at a time.
 #define IR_ACT_UP     0   // brighter (hold to keep ramping)
@@ -298,12 +298,12 @@
 // Watchdog: auto-reset if loop() ever wedges. It's an installed, unattended
 // light — cheap insurance. Timeout is ~2 s; loop() and the boot sequence both
 // finish well inside that.
-#define GLIM_WATCHDOG 1
+#define GLIIM_WATCHDOG 1
 
 // Factory reset: power on with the joystick button held. All channels swell up
 // together as you hold; once they hit full and flash, saved state is wiped back
 // to defaults. Release before then to cancel. FACTORY_HOLD_MS is the hold time.
-#define GLIM_FACTORY_RESET 1
+#define GLIIM_FACTORY_RESET 1
 #define FACTORY_HOLD_MS 2000
 
 // ---------------------------------------------------------------------------
@@ -315,8 +315,8 @@
 //
 // Guarded so it can be overridden at build time without editing this file —
 // `utils/flash.sh --debug` does exactly that.
-#ifndef GLIM_DEBUG
-#define GLIM_DEBUG 0
+#ifndef GLIIM_DEBUG
+#define GLIIM_DEBUG 0
 #endif
 
 // Debug output can't use the hardware USART on either board (see the pin map):
@@ -331,7 +331,7 @@
 //
 // **rev2 has no such conflict** — it uses the real USART0, so IR stays enabled
 // even in debug builds.
-#if GLIM_DEBUG && !GLIM_DEBUG_HW_SERIAL && GLIM_IR
-#undef GLIM_IR
-#define GLIM_IR 0
+#if GLIIM_DEBUG && !GLIIM_DEBUG_HW_SERIAL && GLIIM_IR
+#undef GLIIM_IR
+#define GLIIM_IR 0
 #endif
