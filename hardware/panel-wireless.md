@@ -55,7 +55,54 @@ Three things follow, and none is optional if you want more than a week:
   load on an otherwise quiet board.
 - **Sleep the MCU**, waking on encoder pin-change. It has nothing to do between
   touches.
-- **Do not leave the radio in FU3.** FU2 idles at microamps; FU3 at ~16 mA.
+- **Do not leave the radio in FU3.** That is the factory default and it idles at
+  ~16 mA — see §3a, it is the single easiest mistake to make on this board.
+
+### 3a. FU modes vs AT+SLEEP — two different things
+
+These are easy to confuse, so plainly:
+
+**`AT+FUx` selects an operating mode.** The radio stays powered and listening in
+all of them; they trade idle current against baud range and latency.
+
+**`AT+SLEEP` is a separate command** that stops the radio listening altogether.
+It wakes only when `SET` is pulled low. That is why `SET` has to reach the MCU.
+
+| | Idle | Listening? | Notes |
+|---|---:|---|---|
+| **FU3** — *factory default* | **16 mA** | yes | full baud range, lowest latency |
+| FU1 | 3.6 mA | yes | full baud range |
+| **FU2** | **80 µA** | yes, duty-cycled | baud limited to 1200/2400/4800 |
+| **`AT+SLEEP`** | **22 µA** | **no** | wake by pulling `SET` low; ~80–100 ms to be ready |
+
+Figures are from the HC-12 v2.4 manual — worth confirming against whatever your
+module actually ships with, since clones vary.
+
+**The decision that matters is only "not FU3".** Once the LEDs are gated and the
+MCU sleeps, the budget looks like this:
+
+| Radio mode | Total board draw | Runtime |
+|---|---:|---:|
+| FU3 | 18.5 mA | 5.6 days |
+| FU2 | 2.58 mA | 40 days |
+| `AT+SLEEP` | 2.52 mA | 41 days |
+
+FU2 and `AT+SLEEP` differ by 58 µA — about 2 % of the budget, and far less than
+the boost converter's own quiescent draw. **So do not agonise over it.**
+
+**Use FU2 for normal running.** The radio stays listening, so a knob turn
+transmits immediately with no wake latency, and the panel can still hear a
+`LEVELS` beacon while it is awake. At 4800 baud a 10-byte frame takes ~21 ms,
+comfortably inside the 50 ms RF cadence.
+
+**Use `AT+SLEEP` for exactly one thing: the low-battery shutdown.** Below ~3.3 V
+the HC-12 is outside its rated supply range and cannot be trusted, so put it to
+sleep, stop transmitting, and show red on the battery LED. That is the one job
+`SET` is genuinely needed for at runtime, and it is why the pin is wired.
+
+Both ends of an FU2 link should be in FU2 — the receiver duty-cycles, so a
+FU3 transmitter may not hold the carrier long enough to be caught. Set the
+driver node's radio to match.
 
 ### The consequence nobody expects
 
@@ -157,12 +204,19 @@ not a permanent 20 µA drain.
 
 Against `pinout.md` §2, this build uses:
 
-- **PB1** — HC-12 `SET` (the wired panel leaves this free)
-- **PB0** — battery sense (ADC)
-- **PC0** — P-FET gate, power-gating the WS2812 chain and the divider
-- **PC1** — WS2812 chain
-- **PB2/PB3** — MCU TXD → HC-12 `RXD`, MCU RXD ← HC-12 `TXD`
-- **PC2, PC3** — free
+| Pin | Net | Note |
+|---|---|---|
+| 6 · PB5 | **HC-12 `SET`** | low-battery shutdown, §3a |
+| 10 · PB1 | **`TP4056_CE`** | drive **open-drain only**, or via an N-FET |
+| 11 · PB0 | **`BAT_SENSE`** | ADC. PB0/PB1 are the only ADC-capable PORTB pins |
+| 13 · PC1 | MCU RXD ← HC-12 `TXD` | |
+| 14 · PC2 | MCU TXD → HC-12 `RXD` | |
+| 15 · PC3 | **WS2812 chain ×5** | status, 3 channels, battery |
+| 8 · PB3, 9 · PB2 | **free** | were RS-485; keep them spare |
+
+TP4056 `CHRG`/`STDBY` drive two discrete 0805 LEDs directly, independent of the
+MCU — so charge state stays visible with the board switched off. That is the
+right call and costs nothing.
 
 The encoder A/B pairs are unchanged from every other board in the family, so the
 quadrature decoder is the same code everywhere.
