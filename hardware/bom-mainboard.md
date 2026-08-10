@@ -85,7 +85,7 @@ to source", and it is the one item that would stall the whole build.
 | CN2 | XH-3A (`5V · UPDI · GND`) | 1 | 8 |
 | U15 | 4-pin header (HC-12 debug) | 1 | 5 |
 | U13, U19 | 3-pin header + shunt | 2 | 14 |
-| F1, F2 | PPTC ~200 mA | 2 | 20 |
+| F1, F2 | **PPTC 1812 SMD, 0.3 A hold / 30 V** (e.g. WT1812-030) | 2 | 20 |
 | | | | **132** |
 
 ## 5. Passives
@@ -100,6 +100,35 @@ to source", and it is the one item that would stall the whole build.
 | | | | **45** |
 
 Buy 10× on anything under ₹2 — postage costs more than the parts.
+
+### Sizing the PPTC
+
+`V_BUS` is 15 V, so the fuse must be rated **well above** it — 30 V parts are the
+common shelf item and give proper headroom. 16 V parts exist and are too close.
+
+Hold current has to sit above the worst-case panel load without nuisance-tripping,
+after the usual ~25 % derate at 60 °C:
+
+| Panels | Linear regs | Buck regs |
+|---:|---:|---:|
+| 2 | 60 mA | 24 mA |
+| 4 | 120 mA | 47 mA |
+| 6 | 180 mA | 71 mA |
+
+Six panels on linear regulators is 180 mA, needing ≥240 mA of hold at 23 °C. So
+**0.3 A hold** is the right shelf value — one step up covers the worst case with
+margin, and trip time is not a concern because a short is limited by the PD
+supply at 3 A, which is 10× hold.
+
+| Spec | Value |
+|---|---|
+| Hold current | **0.25–0.35 A** |
+| Voltage rating | **≥24 V**, 30 V preferred |
+| Package | **1812 SMD** (4.6 × 3.0 mm — easy to hand-solder) |
+
+The same part does for the panel boards. A single panel draws ~30 mA, so 0.3 A is
+oversized there and will never trip on normal load — but it still catches a short,
+and one part number across all three boards is worth more than the optimisation.
 
 ## 6. Cost
 

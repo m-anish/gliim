@@ -98,7 +98,7 @@ keeping rather than filling.
 | SW1–3 | EC11 encoder + knob | 3 | 45 ea | |
 | LED1–4 | WS2812B 5050 | 4 | 8 ea | chained |
 | D1 | Schottky SS14/BAT54, SMA | 1 | 3 | reverse protection on `V_BUS` — Option A needs it |
-| F1 | PPTC ~200 mA | 1 | 10 | |
+| F1 | PPTC 1812 SMD, 0.3 A / 30 V (WT1812-030) | 1 | 10 | same part as the mainboard |
 | R1–R9 | 10 kΩ | 9 | — | encoder pull-ups |
 | R10 | 10 kΩ | 1 | — | **TXD pull-up** — stops a booting node jamming the bus |
 | R11 | 470 Ω | 1 | — | WS2812 data, at the MCU end |
