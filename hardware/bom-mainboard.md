@@ -85,7 +85,7 @@ to source", and it is the one item that would stall the whole build.
 | CN2 | XH-3A (`5V · UPDI · GND`) | 1 | 8 |
 | U15 | 4-pin header (HC-12 debug) | 1 | 5 |
 | U13, U19 | 3-pin header + shunt | 2 | 14 |
-| F1, F2 | **PPTC 1812 SMD, 0.3 A hold / 30 V** (e.g. WT1812-030) | 2 | 20 |
+| F1, F2 | **PPTC 0805, 30 V, 0.2 A hold** — `JK-SMD0805-020-30V` (Jinrui) | 2 | 6 |
 | | | | **132** |
 
 ## 5. Passives
@@ -103,32 +103,36 @@ Buy 10× on anything under ₹2 — postage costs more than the parts.
 
 ### Sizing the PPTC
 
-`V_BUS` is 15 V, so the fuse must be rated **well above** it — 30 V parts are the
-common shelf item and give proper headroom. 16 V parts exist and are too close.
+**Part: `JK-SMD0805-020-30V`** (Jinrui) — 0805, **30 V**, 200 mA hold, ~₹3.
 
-Hold current has to sit above the worst-case panel load without nuisance-tripping,
-after the usual ~25 % derate at 60 °C:
+The voltage rating is the spec people get wrong. `V_BUS` is 15 V and a tripped
+PPTC must stand off the whole rail, so a 6 V or 12 V part — which is what most
+0805 PPTCs are — can arc and carbonise in exactly the fault it was fitted for.
+**An over-voltage PPTC is worse than no PPTC.** 30 V gives proper margin.
+
+Most 0805 PPTCs on the Indian shelves top out at 6–12 V, and the 24–30 V parts
+from Littelfuse/Bourns/Weite start at 1812. Jinrui's JK series is the exception
+that keeps the small footprint.
+
+**Hold current: 200 mA is enough for every realistic configuration**, derating
+the usual ~25 % at 60 °C to ~150 mA usable:
 
 | Panels | Linear regs | Buck regs |
 |---:|---:|---:|
-| 2 | 60 mA | 24 mA |
-| 4 | 120 mA | 47 mA |
-| 6 | 180 mA | 71 mA |
+| 2 | 60 mA ✓ | 24 mA ✓ |
+| 4 | 120 mA ✓ | 47 mA ✓ |
+| 6 | **180 mA — tight** | 71 mA ✓ |
 
-Six panels on linear regulators is 180 mA, needing ≥240 mA of hold at 23 °C. So
-**0.3 A hold** is the right shelf value — one step up covers the worst case with
-margin, and trip time is not a concern because a short is limited by the PD
-supply at 3 A, which is 10× hold.
+The one case it does not cover is **six panels all running linear regulators in a
+warm ceiling**. If that is the install, either put bucks on the panels — which
+drops the same six to 71 mA — or look for a 0.35 A part in the same 0805/30 V
+family.
 
-| Spec | Value |
-|---|---|
-| Hold current | **0.25–0.35 A** |
-| Voltage rating | **≥24 V**, 30 V preferred |
-| Package | **1812 SMD** (4.6 × 3.0 mm — easy to hand-solder) |
+A short is limited by the PD supply at 3 A, which is 15× hold, so it trips fast.
+Trip current is ~400 mA.
 
-The same part does for the panel boards. A single panel draws ~30 mA, so 0.3 A is
-oversized there and will never trip on normal load — but it still catches a short,
-and one part number across all three boards is worth more than the optimisation.
+The same part serves the panel boards, where a single ~30 mA load will never
+trip it but a short still will. One part number across all three boards.
 
 ## 6. Cost
 
