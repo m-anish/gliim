@@ -43,11 +43,14 @@ intact, plus the six hard-won findings worth carrying forward.
 
 ## What it does
 
-- Drives **3 independent LED channels** through PT4115 constant-current drivers,
-  dimmed by **16-bit** hardware PWM — deep enough to reach the drivers' own
+- Drives **3 independent LED channels** — each a run of up to ~5 series LEDs, not
+  a single lamp — through PT4115 constant-current drivers, dimmed by **16-bit**
+  hardware PWM — deep enough to reach the drivers' own
   ~1600:1 limit, so the bottom of the range is smooth rather than steppy.
-- **One knob per channel.** Turn for brighter/dimmer, press to toggle. No channel
-  selection, no mode, nothing to remember.
+- **One knob per channel.** A channel is a *string* of LEDs on one driver — a
+  row of fixtures, not a single lamp — and the whole row dims together. Turn for
+  brighter/dimmer, press to toggle. No channel selection, no mode, nothing to
+  remember.
 - **Panels anywhere on the bus.** Any panel can run any zone; several panels can
   run the same zone without fighting.
 - **Remembers the room.** Levels are saved a few seconds after you stop fiddling,

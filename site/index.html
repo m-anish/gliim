@@ -4,9 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>gliim — the dim-witted gnome that tries</title>
-  <meta name="description" content="Lighting for large indoor spaces, controlled by a knob. One knob per light, a panel at every door — some on a thin cable, some on none at all. A starstucklab project." />
+  <meta name="description" content="Lighting for large indoor spaces, controlled by a knob. One knob per row of lights, a panel at every door — some on a thin cable, some on none at all. A starstucklab project." />
   <meta property="og:title" content="gliim" />
-  <meta property="og:description" content="The dim-witted gnome that tries. Lighting for large indoor spaces, controlled by a plain knob — with a panel at every door. A starstucklab project." />
+  <meta property="og:description" content="The dim-witted gnome that tries. Lighting for large indoor spaces, a knob for each row of lights, and a panel at every door. A starstucklab project." />
   <meta property="og:image" content="https://gliim.starstucklab.com/assets/hero.jpg" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://gliim.starstucklab.com" />
@@ -46,7 +46,7 @@
       <span class="sl-kicker">Lighting for large indoor spaces</span>
       <h1>gliim</h1>
       <p class="tagline">The dim-witted gnome that tries.</p>
-      <p class="lede">You turn a knob. The light changes.<br>That is the whole of it.</p>
+      <p class="lede">You turn a knob. A whole row of lights follows.<br>That is the whole of it.</p>
     </div>
 
     <div class="hero-knob">
@@ -72,42 +72,69 @@
 <section class="text" id="simple">
   <div class="sl-wrap">
     <span class="sl-kicker">The whole interface</span>
-    <h2>One knob. One light.</h2>
+    <h2>One knob. One row.</h2>
 
     <figure class="figure">
-      <svg class="ig ig-pairs" viewBox="0 0 760 220" role="img"
-           aria-label="Three knobs, each above a pool of light. Each knob controls only the light beneath it.">
+      <svg class="ig ig-pairs" viewBox="0 0 760 190" role="img"
+           aria-label="Three knobs. Under each one, a run of three lights that dim together as a single row. Each knob controls only its own row.">
         <g class="pair" style="--i:0">
-          <circle class="ig-knob" cx="130" cy="52" r="24"/>
-          <line class="ig-notch" x1="130" y1="34" x2="130" y2="44"/>
-          <line class="ig-drop" x1="130" y1="80" x2="130" y2="120"/>
-          <ellipse class="ig-pool" cx="130" cy="160" rx="78" ry="30"/>
+          <circle class="ig-knob" cx="130" cy="40" r="21"/>
+          <line class="ig-notch" x1="130" y1="24" x2="130" y2="33"/>
+          <line class="ig-drop" x1="130" y1="63" x2="130" y2="88"/>
+          <line class="ig-run" x1="74" y1="90" x2="186" y2="90"/>
+          <line class="ig-stem" x1="74" y1="90" x2="74" y2="102"/>
+          <path class="ig-shade" d="M61 102 H87 L92 112 H56 Z"/>
+          <ellipse class="ig-pool" cx="74" cy="152" rx="27" ry="12"/>
+          <line class="ig-stem" x1="130" y1="90" x2="130" y2="102"/>
+          <path class="ig-shade" d="M117 102 H143 L148 112 H112 Z"/>
+          <ellipse class="ig-pool" cx="130" cy="152" rx="27" ry="12"/>
+          <line class="ig-stem" x1="186" y1="90" x2="186" y2="102"/>
+          <path class="ig-shade" d="M173 102 H199 L204 112 H168 Z"/>
+          <ellipse class="ig-pool" cx="186" cy="152" rx="27" ry="12"/>
         </g>
         <g class="pair" style="--i:1">
-          <circle class="ig-knob" cx="380" cy="52" r="24"/>
-          <line class="ig-notch" x1="380" y1="34" x2="380" y2="44"/>
-          <line class="ig-drop" x1="380" y1="80" x2="380" y2="120"/>
-          <ellipse class="ig-pool" cx="380" cy="160" rx="78" ry="30"/>
+          <circle class="ig-knob" cx="380" cy="40" r="21"/>
+          <line class="ig-notch" x1="380" y1="24" x2="380" y2="33"/>
+          <line class="ig-drop" x1="380" y1="63" x2="380" y2="88"/>
+          <line class="ig-run" x1="324" y1="90" x2="436" y2="90"/>
+          <line class="ig-stem" x1="324" y1="90" x2="324" y2="102"/>
+          <path class="ig-shade" d="M311 102 H337 L342 112 H306 Z"/>
+          <ellipse class="ig-pool" cx="324" cy="152" rx="27" ry="12"/>
+          <line class="ig-stem" x1="380" y1="90" x2="380" y2="102"/>
+          <path class="ig-shade" d="M367 102 H393 L398 112 H362 Z"/>
+          <ellipse class="ig-pool" cx="380" cy="152" rx="27" ry="12"/>
+          <line class="ig-stem" x1="436" y1="90" x2="436" y2="102"/>
+          <path class="ig-shade" d="M423 102 H449 L454 112 H418 Z"/>
+          <ellipse class="ig-pool" cx="436" cy="152" rx="27" ry="12"/>
         </g>
         <g class="pair" style="--i:2">
-          <circle class="ig-knob" cx="630" cy="52" r="24"/>
-          <line class="ig-notch" x1="630" y1="34" x2="630" y2="44"/>
-          <line class="ig-drop" x1="630" y1="80" x2="630" y2="120"/>
-          <ellipse class="ig-pool" cx="630" cy="160" rx="78" ry="30"/>
+          <circle class="ig-knob" cx="630" cy="40" r="21"/>
+          <line class="ig-notch" x1="630" y1="24" x2="630" y2="33"/>
+          <line class="ig-drop" x1="630" y1="63" x2="630" y2="88"/>
+          <line class="ig-run" x1="574" y1="90" x2="686" y2="90"/>
+          <line class="ig-stem" x1="574" y1="90" x2="574" y2="102"/>
+          <path class="ig-shade" d="M561 102 H587 L592 112 H556 Z"/>
+          <ellipse class="ig-pool" cx="574" cy="152" rx="27" ry="12"/>
+          <line class="ig-stem" x1="630" y1="90" x2="630" y2="102"/>
+          <path class="ig-shade" d="M617 102 H643 L648 112 H612 Z"/>
+          <ellipse class="ig-pool" cx="630" cy="152" rx="27" ry="12"/>
+          <line class="ig-stem" x1="686" y1="90" x2="686" y2="102"/>
+          <path class="ig-shade" d="M673 102 H699 L704 112 H668 Z"/>
+          <ellipse class="ig-pool" cx="686" cy="152" rx="27" ry="12"/>
         </g>
       </svg>
-      <figcaption>The knob you reach for is the light that moves.</figcaption>
+      <figcaption>The knob you reach for is the run of lights that moves. Three, six, a whole row — one knob each.</figcaption>
     </figure>
 
     <div class="split">
       <div class="split-copy">
         <p>
-          Turn it and the light follows your hand, all the way down to almost
-          nothing — no stepping, no flicker at the bottom, which is where the
-          useful settings live.
+          Turn it and the whole row follows your hand together, all the way
+          down to almost nothing — no stepping, no flicker at the bottom, which
+          is where the useful settings live.
         </p>
         <p>
-          Press it and the light goes out. Press again and it comes back exactly
+          Press it and that row goes out. Press again and it comes back exactly
           where you left it. There is nothing to select first, nothing to
           remember, and nothing to install on a phone.
         </p>
@@ -123,7 +150,7 @@
 <!-- ============ THE TURN ============ -->
 <section class="turn">
   <div class="sl-wrap">
-    <p class="turn-line">The knob does not have to be near the light.</p>
+    <p class="turn-line">The knob does not have to be near the lights.</p>
   </div>
 </section>
 
@@ -278,8 +305,8 @@
       stage of the process.
     </p>
     <ul class="specs">
-      <li><span>Lights</span> three, dimmed separately</li>
-      <li><span>Control</span> a knob each — turn to dim, press for off</li>
+      <li><span>Rows</span> three, each a run of lights dimmed as one</li>
+      <li><span>Control</span> one knob per row — turn to dim, press for off</li>
       <li><span>Panels</span> as many as the room has doors</li>
       <li><span>Link</span> a thin two-pair cable, or none at all</li>
       <li><span>Power</span> one USB-C supply for the whole thing</li>
