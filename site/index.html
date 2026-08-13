@@ -56,7 +56,7 @@
       </div>
       <p class="knob-caption">
         <span class="knob-pct" id="knobPct">62</span>%
-        <span class="knob-hint">drag, scroll, or use arrow keys</span>
+        <span class="knob-hint">turn it — drag around, or use arrow keys</span>
       </p>
     </div>
   </div>
@@ -344,19 +344,50 @@
   }
   function nudge(d) { value = Math.max(0, Math.min(100, value + d)); render(); }
 
-  var dragging = false, lastY = 0;
+  /* Track the pointer's ANGLE around the knob, not its vertical travel — a
+     round control should follow the hand that turns it. Vertical-only tracking
+     fights a circular gesture: sweeping down the right-hand side is a clockwise
+     turn but reads as "down". */
+  var SWEEP = MAX_ANGLE - MIN_ANGLE;   /* degrees of travel for 0-100 % */
+  var dragging = false, lastAngle = 0, cx = 0, cy = 0, deadzone = 0;
+
+  function angleAt(e) {
+    return Math.atan2(e.clientY - cy, e.clientX - cx) * 180 / Math.PI;
+  }
+
   knob.addEventListener('pointerdown', function (e) {
-    dragging = true; lastY = e.clientY; knob.setPointerCapture(e.pointerId);
+    var r = knob.getBoundingClientRect();
+    cx = r.left + r.width / 2;
+    cy = r.top + r.height / 2;
+    deadzone = r.width * 0.18;         /* near the centre the angle is noise */
+    lastAngle = angleAt(e);
+    dragging = true;
+    knob.setPointerCapture(e.pointerId);
+    knob.focus();
+    e.preventDefault();
   });
+
   knob.addEventListener('pointermove', function (e) {
     if (!dragging) return;
-    nudge((lastY - e.clientY) * 0.5); lastY = e.clientY;
+    if (Math.hypot(e.clientX - cx, e.clientY - cy) < deadzone) return;
+    var a = angleAt(e), d = a - lastAngle;
+    while (d >  180) d -= 360;         /* unwrap across the ±180° seam */
+    while (d < -180) d += 360;
+    nudge(d / SWEEP * 100);
+    lastAngle = a;
   });
-  knob.addEventListener('pointerup',     function () { dragging = false; });
-  knob.addEventListener('pointercancel', function () { dragging = false; });
+
+  function endDrag() { dragging = false; }
+  knob.addEventListener('pointerup', endDrag);
+  knob.addEventListener('pointercancel', endDrag);
+
+  /* Only steal the wheel once the knob has been clicked, so scrolling past the
+     hero still scrolls the page. */
   knob.addEventListener('wheel', function (e) {
+    if (document.activeElement !== knob) return;
     e.preventDefault(); nudge(e.deltaY > 0 ? -3 : 3);
   }, { passive: false });
+
   knob.addEventListener('keydown', function (e) {
     var k = e.key;
     if (k === 'ArrowUp'   || k === 'ArrowRight') { nudge(3);  e.preventDefault(); }
