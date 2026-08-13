@@ -11,23 +11,40 @@ Designators below are the schematic's own.
 
 ## ⚠ 1. Read this before ordering anything
 
-### The PT4115 blocks have no external components
+### The LED driver is discrete — and the inductor is a real choice
 
-On the schematic each driver is a five-pin block — `DIM · VDD · GND · LED+ ·
-LED-` — with nothing else attached. A **bare PT4115 cannot work like that**: it
-is a hysteretic buck and needs an inductor, a Schottky, and a sense resistor to
-function at all. The earlier 3D render *did* show `SS34`, a shielded inductor and
-a `150 mΩ` sense resistor per channel.
+Confirmed against the driver schematic: **PT4115 SOT-89-5 + SS34 + inductor +
+150 mΩ sense + 2× 4.7 µF**, one set per channel. (An earlier sheet drew the
+driver as a bare 5-pin block, which would not have worked — a hysteretic buck
+needs all of these.)
 
-So one of two things is true, and they cost different money:
+**Fit 33 µH, not the 47 µH on the schematic.**
 
-| | What to buy |
-|---|---|
-| **They are modules** (ready-made PT4115 boards) | 3 × driver module, ~₹60 ea. Nothing else. |
-| **They are bare ICs** and the passives live elsewhere in the design | 3 × PT4115 SOT-89-5 + inductor + SS34 + sense resistor + caps |
+The binding constraint is not saturation, it is the inductor's ramp into a
+minimum `DIM` pulse. The dimming floor is a ~2 µs on-time; when `DIM` goes high
+the current climbs from zero, and how far it gets decides how linear the *bottom*
+of the range is — which is the entire point of the 16-bit engine.
 
-**Confirm which before you order.** If they are bare ICs and the passives are
-genuinely absent from the netlist, the boards will not light anything.
+At 667 mA into a 3-LED string (6 V of headroom):
+
+| | Reaches in 2 µs | f_sw | Sat margin |
+|---|---:|---:|---:|
+| **33 µH / 1.6 A** | **55 %** | 545 kHz | 2.09× |
+| 47 µH / 2.5 A | 38 % | 383 kHz | 3.26× |
+| 82 µH / 0.99 A | 22 % | 219 kHz | **1.29× — too thin** |
+
+Peak is 767 mA (667 mA plus half the PT4115's ±15 % ripple), so 2.09× is already
+ample and the 2.5 A part's extra headroom buys nothing. Avoid the 82 µH on both
+counts — thin on saturation *and* barely a fifth of setpoint in a minimum pulse,
+which reproduces exactly the steppy bottom end this design exists to remove.
+
+**The cleanest pairing available is 330 mΩ + 33 µH.** At 303 mA the ramp
+completes inside the 2 µs window, so the bottom of the curve follows the gamma
+model rather than approximating it. Full linearity at 667 mA would need ≤18 µH,
+which is not on the shelf.
+
+Check the land pattern before ordering — a 2.5 A part is typically 7×7 or 8×8 mm
+against ~6×6 for a 1.6 A one.
 
 ### The sense resistor sets the current
 
@@ -63,17 +80,16 @@ Buy a few of each; they are ₹3. Use **1206**, not 0805 — 67 mW is comfortabl
 Buy **2–3 spare ATtiny3226** — megaTinyCore's own part notes call it "difficult
 to source", and it is the one item that would stall the whole build.
 
-## 3. LED drivers (×3) — pick one column
+## 3. LED drivers (×3) — discrete, confirmed
 
-| If modules | ₹ | | If discrete | ₹ |
-|---|---:|---|---|---:|
-| PT4115 driver module ×3 | 180 | | PT4115 SOT-89-5 ×3 | 54 |
-| | | | SS34 SMA ×3 | 15 |
-| | | | 100 µH shielded, ≥1 A sat ×3 | 75 |
-| | | | 150 mΩ 1 % **1206** ×3 | 9 |
-| | | | 4.7 µF **35 V** 1206 ×3 | 12 |
-| | | | 100 nF 50 V ×3 | 3 |
-| **subtotal** | **180** | | **subtotal** | **168** |
+| Ref | Part | Qty | ₹ |
+|---|---|---:|---:|
+| U1–U3 | PT4115 SOT-89-5 | 3 | 54 |
+| D1–D3 | SS34 Schottky, SMA | 3 | 15 |
+| L1–L3 | **33 µH / 1.6 A** shielded — *not the 47 µH on the sheet* | 3 | 75 |
+| R1,R3,R5 | 150 mΩ 1 %, **1206** — sets 667 mA/ch | 3 | 9 |
+| C1–C8 | 4.7 µF **35 V** 1206 (2 per channel) | 6 | 24 |
+| | | | **177** |
 
 ## 4. Connectors
 
@@ -139,7 +155,7 @@ trip it but a short still will. One part number across all three boards.
 | | ₹ |
 |---|---:|
 | Modules + actives | 780 |
-| LED drivers | ~175 |
+| LED drivers | 177 |
 | Connectors | 132 |
 | Passives | 45 |
 | **Parts, one board** | **~1,130** |
