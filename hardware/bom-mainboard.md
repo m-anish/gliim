@@ -18,33 +18,32 @@ Confirmed against the driver schematic: **PT4115 SOT-89-5 + SS34 + inductor +
 driver as a bare 5-pin block, which would not have worked — a hysteretic buck
 needs all of these.)
 
-**Fit 33 µH, not the 47 µH on the schematic.**
+**Fitted: 47 µH / 2.5 A.** It works. The note below is about what it costs and
+what to change if the bottom of the range ever disappoints.
 
-The binding constraint is not saturation, it is the inductor's ramp into a
-minimum `DIM` pulse. The dimming floor is a ~2 µs on-time; when `DIM` goes high
-the current climbs from zero, and how far it gets decides how linear the *bottom*
-of the range is — which is the entire point of the 16-bit engine.
+Saturation is not the constraint — peak is 767 mA (667 mA plus half the PT4115's
+±15 % ripple), so even the 33 µH / 1.6 A part had 2.09× margin and the 2.5 A part
+has 3.26×. Either is safe.
 
-At 667 mA into a 3-LED string (6 V of headroom):
+What *is* constrained is the inductor's ramp into a minimum `DIM` pulse. The
+dimming floor is a ~2 µs on-time; when `DIM` goes high the current climbs from
+zero, and how far it gets sets how linear the **bottom** of the range is — which
+is the point of the 16-bit engine. Bigger L climbs slower:
 
-| | Reaches in 2 µs | f_sw | Sat margin |
-|---|---:|---:|---:|
-| **33 µH / 1.6 A** | **55 %** | 545 kHz | 2.09× |
-| 47 µH / 2.5 A | 38 % | 383 kHz | 3.26× |
-| 82 µH / 0.99 A | 22 % | 219 kHz | **1.29× — too thin** |
+| L | @ 150 mΩ / 667 mA | @ 330 mΩ / 303 mA | f_sw | Sat margin |
+|---|---:|---:|---:|---:|
+| 33 µH / 1.6 A | 55 % | **100 %** | 545 kHz | 2.09× |
+| **47 µH / 2.5 A** ← fitted | **38 %** | **84 %** | 383 kHz | 3.26× |
+| 82 µH / 0.99 A | 22 % | 55 % | 219 kHz | **1.29× — avoid** |
 
-Peak is 767 mA (667 mA plus half the PT4115's ±15 % ripple), so 2.09× is already
-ample and the 2.5 A part's extra headroom buys nothing. Avoid the 82 µH on both
-counts — thin on saturation *and* barely a fifth of setpoint in a minimum pulse,
-which reproduces exactly the steppy bottom end this design exists to remove.
+**With 47 µH fitted, the sense resistor is now the bigger lever.** Dropping to
+**330 mΩ** (303 mA) gets the ramp to 84 % — better than 33 µH ever managed at
+150 mΩ. So if the lowest settings feel steppy or the curve does not match what
+the firmware thinks it is driving, change the resistor before the inductor. It is
+a ₹3 part and easier to swap than an inductor.
 
-**The cleanest pairing available is 330 mΩ + 33 µH.** At 303 mA the ramp
-completes inside the 2 µs window, so the bottom of the curve follows the gamma
-model rather than approximating it. Full linearity at 667 mA would need ≤18 µH,
-which is not on the shelf.
-
-Check the land pattern before ordering — a 2.5 A part is typically 7×7 or 8×8 mm
-against ~6×6 for a 1.6 A one.
+Avoid the 82 µH regardless: thin on saturation *and* a fifth of setpoint in a
+minimum pulse, which is the steppy bottom end this design exists to remove.
 
 ### The sense resistor sets the current
 
@@ -86,7 +85,7 @@ to source", and it is the one item that would stall the whole build.
 |---|---|---:|---:|
 | U1–U3 | PT4115 SOT-89-5 | 3 | 54 |
 | D1–D3 | SS34 Schottky, SMA | 3 | 15 |
-| L1–L3 | **33 µH / 1.6 A** shielded — *not the 47 µH on the sheet* | 3 | 75 |
+| L1–L3 | **47 µH / 2.5 A** shielded | 3 | 75 |
 | R1,R3,R5 | 150 mΩ 1 %, **1206** — sets 667 mA/ch | 3 | 9 |
 | C1–C8 | 4.7 µF **35 V** 1206 (2 per channel) | 6 | 24 |
 | | | | **177** |
