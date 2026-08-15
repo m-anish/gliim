@@ -77,7 +77,7 @@
       </div>
       <p class="knob-caption">
         <span class="knob-pct" id="knobPct">62</span>%
-        <span class="knob-hint">turn it — drag around, or use arrow keys</span>
+        <span class="knob-hint">turn it — drag, scroll, or use arrow keys</span>
       </p>
     </div>
   </div>
@@ -538,10 +538,7 @@
   knob.addEventListener('pointerup', endDrag);
   knob.addEventListener('pointercancel', endDrag);
 
-  /* Only steal the wheel once the knob has been clicked, so scrolling past the
-     hero still scrolls the page. */
   knob.addEventListener('wheel', function (e) {
-    if (document.activeElement !== knob) return;
     e.preventDefault(); nudge(e.deltaY > 0 ? -3 : 3);
   }, { passive: false });
 
