@@ -306,6 +306,40 @@ body {
 .wide-shot { margin: 2.5rem 0 0; }
 .wide-shot img { max-height: 420px; object-fit: cover; }
 
+/* ── "What else could you do" ────────────────────────────────────────── */
+.text h3 {
+  font-family: var(--sl-font-mono); font-size: 0.72rem;
+  letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--sl-accent); margin: 2.5rem 0 1rem; font-weight: 500;
+}
+.alts { list-style: none; padding: 0; margin: 0 0 1.6rem; max-width: 56ch; }
+.alts li {
+  padding: 0.9rem 0; border-top: 1px solid var(--sl-border);
+  color: var(--sl-text-dim); font-size: 1.05rem; line-height: 1.7;
+}
+.alts li:last-child { border-bottom: 1px solid var(--sl-border); }
+.alts span {
+  display: block; color: var(--sl-text);
+  font-family: var(--sl-font-display); font-size: 1.15rem; margin-bottom: 0.15rem;
+}
+
+/* ── Specification grid ──────────────────────────────────────────────── */
+.spec-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem 2.5rem; margin-top: 1.5rem;
+}
+.spec-grid h3 { margin-top: 1.5rem; }
+.spec-grid dl { margin: 0; }
+.spec-grid dt {
+  font-family: var(--sl-font-mono); font-size: 0.7rem;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--sl-text-mute); margin-top: 0.85rem;
+}
+.spec-grid dd {
+  margin: 0.15rem 0 0; color: var(--sl-text-dim); font-size: 0.95rem;
+  line-height: 1.55;
+}
+
 /* ── Board shots ─────────────────────────────────────────────────────── */
 .board-shots {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));

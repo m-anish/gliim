@@ -259,6 +259,28 @@
     <p class="aside">
       Everyone already knows how to use it.
     </p>
+
+    <h3>What else could you do?</h3>
+    <ul class="alts">
+      <li>
+        <span>A dimmer by the door</span>
+        Cheap and familiar. But it is one switch in one place, and most of them
+        buzz or flicker once you turn them well down.
+      </li>
+      <li>
+        <span>Smart bulbs</span>
+        Fine for a few lamps. In a hall every fitting has to be a smart fitting,
+        and everyone needs the app — including whoever is visiting.
+      </li>
+      <li>
+        <span>A commercial system</span>
+        Excellent, and priced for a building. Someone has to come and set it up.
+      </li>
+    </ul>
+    <p>
+      gliim is the small one in between. A knob at every door, nothing to
+      configure, and nothing to install on anybody's phone.
+    </p>
   </div>
 </section>
 
@@ -278,22 +300,80 @@
   </div>
 </section>
 
-<!-- ============ THE THING ITSELF ============ -->
-<section class="text" id="unit">
-  <div class="sl-wrap narrow">
-    <span class="sl-kicker">The unit</span>
-    <h2>gliim-3</h2>
+<!-- ============ SPECIFICATION ============ -->
+<section class="text" id="specs">
+  <div class="sl-wrap">
+    <span class="sl-kicker">Specification</span>
+    <h2>gliim-3 · rev A</h2>
     <p>
-      The renders above are how it is meant to end up. The boards themselves are
-      still on the bench.
+      The renders above are how it is meant to end up. The boards are still on
+      the bench. For anyone who wants the numbers:
     </p>
-    <ul class="specs">
-      <li><span>Rows</span> three, each a run of lights dimmed as one</li>
-      <li><span>Control</span> one knob per row — turn to dim, press for off</li>
-      <li><span>Panels</span> as many as the room has doors</li>
-      <li><span>Link</span> a thin two-pair cable, or none at all</li>
-      <li><span>Power</span> one USB-C supply for the whole thing</li>
-    </ul>
+
+    <div class="spec-grid">
+      <div>
+        <h3>Light</h3>
+        <dl>
+          <dt>Channels</dt><dd>3, dimmed independently</dd>
+          <dt>Drive</dt><dd>PT4115 constant current</dd>
+          <dt>Current</dt><dd>667 mA per channel — set by a resistor, 200–700 mA</dd>
+          <dt>Per channel</dt><dd>up to ~5 LEDs in series</dd>
+          <dt>Dimming</dt><dd>16-bit PWM at 305 Hz</dd>
+          <dt>Range</dt><dd>1638:1, gamma-corrected</dd>
+          <dt>Output</dt><dd>~18 W total across three channels</dd>
+        </dl>
+      </div>
+
+      <div>
+        <h3>Control</h3>
+        <dl>
+          <dt>Knobs</dt><dd>3 × EC11 rotary encoder, with push</dd>
+          <dt>Panels</dt><dd>any number; any panel runs any zone</dd>
+          <dt>Indication</dt><dd>addressable LED chain — link state and per-channel level</dd>
+          <dt>Memory</dt><dd>levels saved to EEPROM, restored on power-up</dd>
+        </dl>
+      </div>
+
+      <div>
+        <h3>Link</h3>
+        <dl>
+          <dt>Wired</dt><dd>RS-485, 115200 baud, ~15 m on 2-pair telephone cable</dd>
+          <dt>Wireless</dt><dd>HC-12, 433 MHz — where cable cannot go</dd>
+          <dt>Connector</dt><dd>RJ11 6P6C, two per node, daisy-chained</dd>
+          <dt>Nodes</dt><dd>~128 electrically; panel power runs out first, near 10</dd>
+        </dl>
+      </div>
+
+      <div>
+        <h3>Power</h3>
+        <dl>
+          <dt>Input</dt><dd>USB-C PD at 15 V</dd>
+          <dt>Logic</dt><dd>5 V, buck-regulated</dd>
+          <dt>Bus</dt><dd>15 V to the panels, fused at 200 mA</dd>
+          <dt>Battery panel</dt><dd>18650 or LiPo, ~40 days between charges</dd>
+        </dl>
+      </div>
+
+      <div>
+        <h3>Boards</h3>
+        <dl>
+          <dt>Driver node</dt><dd>ATtiny3226 — two USARTs, 32 KB flash</dd>
+          <dt>Panel</dt><dd>ATtiny3216</dd>
+          <dt>Firmware</dt><dd>C++ on megaTinyCore, flashed over UPDI</dd>
+          <dt>Build cost</dt><dd>~₹1,300 a driver, ~₹450 a panel</dd>
+        </dl>
+      </div>
+
+      <div>
+        <h3>In fairness</h3>
+        <dl>
+          <dt>Certification</dt><dd>none — it is a self-built board</dd>
+          <dt>Warranty</dt><dd>none</dd>
+          <dt>Mains</dt><dd>not mains-rated; runs from a USB-C supply</dd>
+          <dt>Licence</dt><dd>MIT — schematics, firmware and BOM are public</dd>
+        </dl>
+      </div>
+    </div>
   </div>
 </section>
 

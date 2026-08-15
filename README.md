@@ -71,6 +71,8 @@ intact, plus the six hard-won findings worth carrying forward.
 | USB-C PD trigger | 12–20 V for the LED rail; 12 V down the bus for panels |
 | 2-pair CAT5 + RJ11 6P4C (~₹7/m) | one cable carries the bus **and** panel power; an RJ45 plug cannot fit |
 
+Why this exists rather than buying something: [docs/market.md](docs/market.md).
+
 **Numbered pinouts for both boards: [hardware/pinout.md](hardware/pinout.md).** Wider board spec: [hardware/board.md](hardware/board.md). The LED
 channel itself — topology, sense resistor, inductor, layout, thermals — is in
 [hardware/led-driver.md](hardware/led-driver.md).
@@ -104,6 +106,7 @@ override, `--slow` if an upload is flaky.
 ```
 gliim/
 ├── docs/architecture.md   ← the system: topology, RS-485, protocol, pin budgets
+├── docs/market.md         where this sits against dimmers, DALI, 0-10V and makers
 ├── src/main.cpp           firmware (pre-pivot; rewrite pending)
 ├── include/config.h       pins + every tunable in one place
 ├── platformio.ini         build / upload config
