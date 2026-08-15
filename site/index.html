@@ -10,7 +10,17 @@
   <meta property="og:image" content="https://gliim.starstucklab.com/assets/hero.jpg" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://gliim.starstucklab.com" />
-  <meta name="theme-color" content="#0c0b10" />
+  <meta name="theme-color" content="#f7f5f2" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0c0b10" media="(prefers-color-scheme: dark)" />
+  <script>
+    /* Runs before the stylesheet paints, so a stored choice never flashes. */
+    (function () {
+      try {
+        var t = localStorage.getItem('gliim-theme');
+        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+    })();
+  </script>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -29,10 +39,21 @@
       <span class="brand-mark" aria-hidden="true"></span>
       gliim
     </a>
-    <span class="status">
-      <span class="dot"></span>
-      <span class="status-text">Unit 000 · Trying</span>
-    </span>
+    <div class="topbar-right">
+      <span class="status">
+        <span class="dot"></span>
+        <span class="status-text">Unit 000 · Trying</span>
+      </span>
+      <button id="themeToggle" class="theme-toggle" type="button" aria-label="Switch to dark theme">
+        <svg class="icon icon-moon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"/>
+        </svg>
+        <svg class="icon icon-sun" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="4.2"/>
+          <path d="M12 2.4v2.4M12 19.2v2.4M2.4 12h2.4M19.2 12h2.4M5.2 5.2l1.7 1.7M17.1 17.1l1.7 1.7M18.8 5.2l-1.7 1.7M6.9 17.1l-1.7 1.7"/>
+        </svg>
+      </button>
+    </div>
   </div>
 </header>
 
@@ -261,22 +282,41 @@
     </p>
 
     <h3>What else could you do?</h3>
-    <ul class="alts">
-      <li>
-        <span>A dimmer by the door</span>
-        Cheap and familiar. But it is one switch in one place, and most of them
-        buzz or flicker once you turn them well down.
-      </li>
-      <li>
-        <span>Smart bulbs</span>
-        Fine for a few lamps. In a hall every fitting has to be a smart fitting,
-        and everyone needs the app — including whoever is visiting.
-      </li>
-      <li>
-        <span>A commercial system</span>
-        Excellent, and priced for a building. Someone has to come and set it up.
-      </li>
-    </ul>
+    <div class="table-wrap">
+      <table class="compare">
+        <caption class="vh">How gliim compares with a dimmer switch and smart bulbs</caption>
+        <thead>
+          <tr>
+            <th scope="col"><span class="vh">Feature</span></th>
+            <th scope="col">A dimmer<br>switch</th>
+            <th scope="col">Smart<br>bulbs</th>
+            <th scope="col" class="me">gliim</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row">Turn it down from</th>
+            <td>One spot</td><td>Your phone</td><td class="me">Any door</td>
+          </tr>
+          <tr>
+            <th scope="row">Needs an app</th>
+            <td>No</td><td>Yes</td><td class="me">No</td>
+          </tr>
+          <tr>
+            <th scope="row">Wi-Fi is down</th>
+            <td>Fine</td><td>Stops</td><td class="me">Fine</td>
+          </tr>
+          <tr>
+            <th scope="row">Turned right down</th>
+            <td>Often flickers</td><td>Usually fine</td><td class="me">Smooth</td>
+          </tr>
+          <tr>
+            <th scope="row">Adding another control</th>
+            <td>Rewiring</td><td>Another phone</td><td class="me">Plug one in</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
     <p>
       gliim is the small one in between. A knob at every door, nothing to
       configure, and nothing to install on anybody's phone.
@@ -416,6 +456,33 @@
 </footer>
 
 <script>
+/* Theme toggle. The stored choice is applied in <head> before paint; this only
+   handles clicks and keeps the label honest. With no stored choice the page
+   follows the system, and keeps following it if the system changes. */
+(function () {
+  var root = document.documentElement, btn = document.getElementById('themeToggle');
+  if (!btn) return;
+  var mq = window.matchMedia('(prefers-color-scheme: dark)');
+
+  function resolved() {
+    var set = root.getAttribute('data-theme');
+    return set === 'dark' || set === 'light' ? set : (mq.matches ? 'dark' : 'light');
+  }
+  function label() {
+    btn.setAttribute('aria-label',
+      resolved() === 'dark' ? 'Switch to light theme' : 'Switch to dark theme');
+  }
+  btn.addEventListener('click', function () {
+    var next = resolved() === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try { localStorage.setItem('gliim-theme', next); } catch (e) {}
+    label();
+  });
+  /* Only relabel on a system change — the attribute, if set, still wins. */
+  if (mq.addEventListener) mq.addEventListener('change', label);
+  label();
+})();
+
 /* The hero knob. It is the product, so it may as well behave like it. */
 (function () {
   var knob = document.getElementById('knob');

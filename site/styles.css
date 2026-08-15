@@ -6,15 +6,25 @@
    ========================================================================== */
 
 :root {
-  /* ── Token overrides: dusk violet, unused elsewhere in the family ── */
-  --sl-bg:        #0c0b10;
-  --sl-surface:   #141320;
-  --sl-border:    #201e2c;
-  --sl-text:      #e9e6ee;
-  --sl-text-dim:  #8b8798;
-  --sl-text-mute: #5c586a;
-  --sl-accent:    #9b8ec4;
-  --sl-accent-2:  #e0a76b;
+  /* ── LIGHT is the default, so every colour has a definition outside any
+     media query. Dark is applied twice below: once for the system preference
+     and once for an explicit toggle, so the button wins in both directions. ── */
+  --sl-bg: #f7f5f2;
+  --sl-surface: #efebe5;
+  --sl-border: #e0dace;
+  --sl-text: #17151c;
+  --sl-text-dim: #4e4959;
+  --sl-text-mute: #6f6a7d;
+  --sl-accent: #6b5b9e;
+  --sl-accent-2: #b0722f;
+  --g-el-hi: #ffffff;
+  --g-el-1: #faf8f5;
+  --g-el-2: #f1ede7;
+  --g-el-3: #e6e0d7;
+  --g-hairline: rgba(0,0,0,0.07);
+  --g-shade: #ddd6cb;
+  --g-imgbg: #eae5de;
+  --g-lightfill: #c9821f;
 
   --sl-font-display: 'Newsreader', Georgia, 'Times New Roman', serif;
   --sl-font-body:    'Karla', system-ui, -apple-system, sans-serif;
@@ -24,6 +34,71 @@
 
   /* Driven by the hero knob. 0 = off, 1 = full. */
   --lit: 0.28;
+
+  color-scheme: light;
+}
+
+/* System preference — unless the reader has explicitly chosen light. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --sl-bg: #0c0b10;
+    --sl-surface: #141320;
+    --sl-border: #201e2c;
+    --sl-text: #e9e6ee;
+    --sl-text-dim: #8b8798;
+    --sl-text-mute: #807b8f;
+    --sl-accent: #9b8ec4;
+    --sl-accent-2: #e0a76b;
+    --g-el-hi: #2b2839;
+    --g-el-1: #24222f;
+    --g-el-2: #1b1926;
+    --g-el-3: #100e18;
+    --g-hairline: rgba(255,255,255,0.06);
+    --g-shade: #221f2e;
+    --g-imgbg: #07070a;
+    --g-lightfill: #e0a76b;
+    color-scheme: dark;
+  }
+}
+
+/* Explicit choice always wins. */
+:root[data-theme="dark"] {
+  --sl-bg: #0c0b10;
+  --sl-surface: #141320;
+  --sl-border: #201e2c;
+  --sl-text: #e9e6ee;
+  --sl-text-dim: #8b8798;
+  --sl-text-mute: #807b8f;
+  --sl-accent: #9b8ec4;
+  --sl-accent-2: #e0a76b;
+  --g-el-hi: #2b2839;
+  --g-el-1: #24222f;
+  --g-el-2: #1b1926;
+  --g-el-3: #100e18;
+  --g-hairline: rgba(255,255,255,0.06);
+  --g-shade: #221f2e;
+  --g-imgbg: #07070a;
+  --g-lightfill: #e0a76b;
+  color-scheme: dark;
+}
+:root[data-theme="light"] {
+  --sl-bg: #f7f5f2;
+  --sl-surface: #efebe5;
+  --sl-border: #e0dace;
+  --sl-text: #17151c;
+  --sl-text-dim: #4e4959;
+  --sl-text-mute: #6f6a7d;
+  --sl-accent: #6b5b9e;
+  --sl-accent-2: #b0722f;
+  --g-el-hi: #ffffff;
+  --g-el-1: #faf8f5;
+  --g-el-2: #f1ede7;
+  --g-el-3: #e6e0d7;
+  --g-hairline: rgba(0,0,0,0.07);
+  --g-shade: #ddd6cb;
+  --g-imgbg: #eae5de;
+  --g-lightfill: #c9821f;
+  color-scheme: light;
 }
 
 * { box-sizing: border-box; }
@@ -110,11 +185,11 @@ body {
   --angle: 33deg;
   width: min(200px, 46vw); aspect-ratio: 1; border-radius: 50%;
   position: relative; cursor: grab; touch-action: none;
-  background: radial-gradient(circle at 50% 42%, #24222f 0%, #16141f 62%, #100e18 100%);
+  background: radial-gradient(circle at 50% 42%, var(--g-el-1) 0%, var(--g-el-2) 62%, var(--g-el-3) 100%);
   border: 1px solid var(--sl-border);
   box-shadow:
     0 0 calc(10px + 60px * var(--lit)) color-mix(in srgb, var(--sl-accent-2) calc(55% * var(--lit)), transparent),
-    inset 0 1px 0 rgba(255,255,255,0.05);
+    inset 0 1px 0 var(--g-hairline);
   transition: box-shadow 140ms linear;
   display: grid; place-items: center;
 }
@@ -122,8 +197,8 @@ body {
 .knob:focus-visible { outline: 2px solid var(--sl-accent); outline-offset: 6px; }
 .knob-face {
   width: 74%; height: 74%; border-radius: 50%;
-  background: linear-gradient(160deg, #2b2839, #17151f);
-  border: 1px solid rgba(255,255,255,0.06);
+  background: linear-gradient(160deg, var(--g-el-hi), var(--g-el-3));
+  border: 1px solid var(--g-hairline);
   transform: rotate(var(--angle));
   transition: transform 90ms ease-out;
   display: grid; justify-items: center;
@@ -182,12 +257,12 @@ body {
 }
 
 /* shared primitives */
-.ig-knob, .ig-pknob { fill: #1b1926; stroke: var(--sl-accent); stroke-width: 1.5; }
+.ig-knob, .ig-pknob { fill: var(--g-el-2); stroke: var(--sl-accent); stroke-width: 1.5; }
 .ig-pknob.sm { stroke-opacity: 0.45; }
 .ig-notch { stroke: var(--sl-accent); stroke-width: 2.5; stroke-linecap: round; }
 .ig-drop  { stroke: var(--sl-border); stroke-width: 1.5; stroke-dasharray: 3 5; }
 .ig-run   { stroke: var(--sl-text-mute); stroke-width: 2; opacity: 0.55; }
-.ig-pool  { fill: var(--sl-accent-2); opacity: 0.16; }
+.ig-pool  { fill: var(--g-lightfill); opacity: 0.16; }
 .ig-label {
   font-family: var(--sl-font-mono); font-size: 13px; fill: var(--sl-text-dim);
   text-anchor: middle; letter-spacing: 0.06em;
@@ -217,11 +292,11 @@ body {
 .ig-room  { fill: none; stroke: var(--sl-border); stroke-width: 1.5; opacity: 0.8; }
 .ig-floor { stroke: var(--sl-text-mute); stroke-width: 1.5; opacity: 0.5; }
 .ig-ceilrun { stroke: var(--sl-border); stroke-width: 2; }
-.ig-dot { fill: var(--sl-accent-2); opacity: 0.35; }
+.ig-dot { fill: var(--g-lightfill); opacity: 0.35; }
 .ig-stem  { stroke: var(--sl-text-mute); stroke-width: 1.5; opacity: 0.6; }
-.ig-shade { fill: #221f2e; stroke: var(--sl-text-mute); stroke-width: 1.2; stroke-opacity: 0.6; }
-.ig-cone  { fill: var(--sl-accent-2); opacity: 0.09; }
-.ig-panel { fill: #1b1926; stroke: var(--sl-text-mute); stroke-width: 1.5; }
+.ig-shade { fill: var(--g-shade); stroke: var(--sl-text-mute); stroke-width: 1.2; stroke-opacity: 0.6; }
+.ig-cone  { fill: var(--g-lightfill); opacity: 0.09; }
+.ig-panel { fill: var(--g-el-2); stroke: var(--sl-text-mute); stroke-width: 1.5; }
 .ig-cable { fill: none; stroke: var(--sl-text-mute); stroke-width: 2; opacity: 0.45; }
 .ig-cable-flow {
   fill: none; stroke: var(--sl-accent); stroke-width: 2.5;
@@ -306,6 +381,74 @@ body {
 .wide-shot { margin: 2.5rem 0 0; }
 .wide-shot img { max-height: 420px; object-fit: cover; }
 
+/* ── Theme toggle ────────────────────────────────────────────────────── */
+.topbar-right { display: flex; align-items: center; gap: 0.9rem; }
+.theme-toggle {
+  display: grid; place-items: center;
+  width: 32px; height: 32px; padding: 0;
+  background: transparent; border: 1px solid var(--sl-border);
+  border-radius: 8px; cursor: pointer; color: var(--sl-text-mute);
+  transition: color 140ms, border-color 140ms;
+}
+.theme-toggle:hover { color: var(--sl-accent); border-color: var(--sl-accent); }
+.theme-toggle:focus-visible { outline: 2px solid var(--sl-accent); outline-offset: 2px; }
+.theme-toggle .icon {
+  width: 16px; height: 16px; fill: none;
+  stroke: currentColor; stroke-width: 1.7;
+  stroke-linecap: round; stroke-linejoin: round;
+  grid-area: 1 / 1;
+}
+.icon-moon { fill: currentColor; stroke: none; }
+
+/* Show the icon for the theme you would switch TO — mirrors the token blocks
+   so it stays correct with the system preference and with an explicit choice. */
+.icon-sun  { display: none; }
+.icon-moon { display: block; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .icon-sun  { display: block; }
+  :root:not([data-theme="light"]) .icon-moon { display: none; }
+}
+:root[data-theme="dark"]  .icon-sun  { display: block; }
+:root[data-theme="dark"]  .icon-moon { display: none; }
+:root[data-theme="light"] .icon-sun  { display: none; }
+:root[data-theme="light"] .icon-moon { display: block; }
+
+/* ── Comparison table ────────────────────────────────────────────────── */
+.vh {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap;
+}
+.table-wrap {
+  overflow-x: auto; margin: 0 0 1.6rem;
+  -webkit-overflow-scrolling: touch;
+}
+.compare {
+  border-collapse: collapse; width: 100%; min-width: 420px;
+  font-size: 0.92rem; line-height: 1.45;
+}
+.compare th, .compare td {
+  padding: 0.7rem 0.6rem; text-align: left; vertical-align: top;
+  border-bottom: 1px solid var(--sl-border);
+}
+.compare thead th {
+  font-family: var(--sl-font-mono); font-size: 0.66rem;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--sl-text-mute); font-weight: 500;
+  border-bottom-color: var(--sl-text-mute);
+}
+.compare tbody th {
+  font-weight: 400; color: var(--sl-text-dim);
+  width: 34%; padding-left: 0;
+}
+.compare td { color: var(--sl-text-dim); }
+.compare .me {
+  color: var(--sl-text);
+  background: color-mix(in srgb, var(--sl-accent) 9%, transparent);
+}
+.compare thead .me { color: var(--sl-accent); font-weight: 600; }
+.compare tbody tr:last-child th,
+.compare tbody tr:last-child td { border-bottom: none; }
+
 /* ── "What else could you do" ────────────────────────────────────────── */
 .text h3 {
   font-family: var(--sl-font-mono); font-size: 0.72rem;
@@ -348,7 +491,7 @@ body {
 .board-shots figure { margin: 0; }
 .board-shots img {
   width: 100%; height: auto; display: block; border-radius: 10px;
-  border: 1px solid var(--sl-border); background: #07070a;
+  border: 1px solid var(--sl-border); background: var(--g-imgbg);
 }
 .board-shots figcaption {
   font-family: var(--sl-font-mono); font-size: 0.72rem;
